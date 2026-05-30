@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: loqa-music-api
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false          # set manually in Render dashboard
+      - key: JWT_SECRET
+        sync: false          # set manually in Render dashboard
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: ALLOWED_ORIGINS
+        sync: false          # set to your Vercel URL after deploy
+      - key: INNERTUBE_API_KEY
+        value: AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "60000"
+      - key: RATE_LIMIT_MAX
+        value: "150"
