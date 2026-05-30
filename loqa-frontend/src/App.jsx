@@ -16,7 +16,7 @@ import useUIStore from './stores/uiStore.js';
 import useEqStore from './stores/eqStore.js';
 import { useMediaQuery, useKeyboardShortcuts, useMediaSession, useNetworkStatus } from './hooks/index.js';
 
-const API = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || '';
+const API = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'https://loqa-music.onrender.com';
 
 // Stable portal container — never changes, never inside #root
 const PORTAL_ROOT = document.getElementById('loqa-portals') || document.body;

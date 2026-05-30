@@ -3,7 +3,7 @@
  * Dev: Vite proxies /api → localhost:3000
  * Prod: uses VITE_API_URL env var
  */
-const BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || '';
+const BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'https://loqa-music.onrender.com';
 
 function normalise(items = [], source = 'youtube') {
   const seen = new Set();

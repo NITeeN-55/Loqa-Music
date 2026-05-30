@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       // Dev proxy: forwards /api calls to local backend
       proxy: {
         '/api': {
-          target: env.VITE_API_URL || 'http://localhost:3000',
+          target: env.VITE_API_URL || 'https://loqa-music.onrender.com',
           changeOrigin: true,
           secure: false,
         },
@@ -37,7 +37,7 @@ export default defineConfig(({ mode }) => {
 
     // Make VITE_API_URL available everywhere in the app
     define: {
-      __API_URL__: JSON.stringify(env.VITE_API_URL || ''),
+      __API_URL__: JSON.stringify(env.VITE_API_URL || 'https://loqa-music.onrender.com'),
     },
   };
 });

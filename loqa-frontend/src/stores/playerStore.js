@@ -17,7 +17,7 @@
 import { create } from 'zustand';
 import { cacheSong, getCachedSong } from '../utils/constants.js';
 
-const API = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || '';
+const API = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'https://loqa-music.onrender.com';
 
 /* ── Forward reference so libraryStore can register addRecent ── */
 let _addRecent = null;
