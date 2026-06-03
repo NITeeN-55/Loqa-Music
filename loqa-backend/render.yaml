@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: loqa-music-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      # Set these manually in the Render dashboard → Environment tab:
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false   # e.g. https://loqa-music.vercel.app
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: INNERTUBE_API_KEY
+        value: AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "60000"
+      - key: RATE_LIMIT_MAX
+        value: "150"
