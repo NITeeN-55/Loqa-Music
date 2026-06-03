@@ -1,9 +1,9 @@
 /**
  * YouTube API client — all calls go through the Express backend proxy.
- * Dev: Vite proxies /api → localhost:3000
- * Prod: uses VITE_API_URL env var
+ * Dev: Vite proxies /api → backend URL in .env
+ * Prod: apiFetch prepends VITE_API_URL baked in at build time
  */
-const BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'https://loqa-music.onrender.com';
+import { apiFetch } from './api.js';
 
 function normalise(items = [], source = 'youtube') {
   const seen = new Set();
@@ -28,13 +28,13 @@ function normalise(items = [], source = 'youtube') {
 }
 
 async function get(path) {
-  const r = await fetch(`${BASE}${path}`);
+  const r = await apiFetch(path);
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
 
-export const searchYT      = async q    => { try { return normalise((await get(`/api/youtube/search?q=${encodeURIComponent(q)}`)).items, 'search');   } catch { return []; } };
-export const getTrending   = async ()   => { try { return normalise((await get('/api/youtube/trending')).items, 'trending');                            } catch { return []; } };
-export const getRelated    = async id   => { try { return normalise((await get(`/api/youtube/related?v=${encodeURIComponent(id)}`)).items, 'related'); } catch { return []; } };
-export const getSuggestions= async q    => { try { return (await get(`/api/youtube/suggestions?q=${encodeURIComponent(q)}`)).suggestions || [];        } catch { return []; } };
-export const getGenre      = async g    => { try { return normalise((await get(`/api/youtube/genre?g=${encodeURIComponent(g)}`)).items, 'genre');       } catch { return []; } };
+export const searchYT       = async q => { try { return normalise((await get(`/api/youtube/search?q=${encodeURIComponent(q)}`)).items, 'search');   } catch { return []; } };
+export const getTrending    = async () => { try { return normalise((await get('/api/youtube/trending')).items, 'trending');                           } catch { return []; } };
+export const getRelated     = async id => { try { return normalise((await get(`/api/youtube/related?v=${encodeURIComponent(id)}`)).items, 'related'); } catch { return []; } };
+export const getSuggestions = async q  => { try { return (await get(`/api/youtube/suggestions?q=${encodeURIComponent(q)}`)).suggestions || [];        } catch { return []; } };
+export const getGenre       = async g  => { try { return normalise((await get(`/api/youtube/genre?g=${encodeURIComponent(g)}`)).items, 'genre');       } catch { return []; } };

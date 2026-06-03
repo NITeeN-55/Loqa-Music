@@ -5,9 +5,8 @@
  */
 import { create } from 'zustand';
 import { loadLS, saveLS, cacheSong } from '../utils/constants.js';
+import { apiFetch } from '../utils/api.js';
 import { _regAddRecent } from './playerStore.js';
-
-const API = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'https://loqa-music.onrender.com';
 
 function getHeaders() {
   try {
@@ -32,7 +31,7 @@ const useLibraryStore = create((set, get) => ({
   syncFromServer: async () => {
     set({ syncing: true });
     try {
-      const r = await fetch(`${API}/api/library`, { headers: getHeaders() });
+      const r = await apiFetch(`/api/library`, { headers: getHeaders() });
       if (!r.ok) { set({ syncing: false }); return; }
       const d = await r.json();
 
@@ -73,7 +72,7 @@ const useLibraryStore = create((set, get) => ({
     if (!song?.id) return;
     get().addRecent(song.id);
     try {
-      await fetch(`${API}/api/library/history`, {
+      await apiFetch(`/api/library/history`, {
         method: 'POST', headers: getHeaders(), body: JSON.stringify(song),
       });
     } catch {}
@@ -96,7 +95,7 @@ const useLibraryStore = create((set, get) => ({
     try {
       // Build a proper song object even if only ID was passed
       const songObj = typeof song === 'object' ? song : { id };
-      await fetch(`${API}/api/library/likes`, {
+      await apiFetch(`/api/library/likes`, {
         method: 'POST', headers: getHeaders(), body: JSON.stringify(songObj),
       });
     } catch {
@@ -126,7 +125,7 @@ const useLibraryStore = create((set, get) => ({
     });
 
     try {
-      const r = await fetch(`${API}/api/library/playlists`, {
+      const r = await apiFetch(`/api/library/playlists`, {
         method: 'POST', headers: getHeaders(),
         body: JSON.stringify({ name, desc, ci }),
       });
@@ -151,7 +150,7 @@ const useLibraryStore = create((set, get) => ({
       return { playlists };
     });
     try {
-      await fetch(`${API}/api/library/playlists/${id}`, {
+      await apiFetch(`/api/library/playlists/${id}`, {
         method: 'PUT', headers: getHeaders(), body: JSON.stringify({ name, desc }),
       });
     } catch {}
@@ -164,7 +163,7 @@ const useLibraryStore = create((set, get) => ({
       return { playlists };
     });
     try {
-      await fetch(`${API}/api/library/playlists/${id}`, {
+      await apiFetch(`/api/library/playlists/${id}`, {
         method: 'DELETE', headers: getHeaders(),
       });
     } catch {}
@@ -191,7 +190,7 @@ const useLibraryStore = create((set, get) => ({
     if (typeof song === 'object') cacheSong(song);
 
     try {
-      await fetch(`${API}/api/library/playlists/${playlistId}/songs`, {
+      await apiFetch(`/api/library/playlists/${playlistId}/songs`, {
         method: 'POST', headers: getHeaders(),
         body: JSON.stringify(typeof song === 'object' ? song : { id }),
       });
@@ -208,7 +207,7 @@ const useLibraryStore = create((set, get) => ({
       return { playlists };
     });
     try {
-      await fetch(`${API}/api/library/playlists/${playlistId}/songs/${songId}`, {
+      await apiFetch(`/api/library/playlists/${playlistId}/songs/${songId}`, {
         method: 'DELETE', headers: getHeaders(),
       });
     } catch {}

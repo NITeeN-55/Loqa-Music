@@ -16,8 +16,7 @@
  */
 import { create } from 'zustand';
 import { cacheSong, getCachedSong } from '../utils/constants.js';
-
-const API = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'https://loqa-music.onrender.com';
+import { apiFetch } from '../utils/api.js';
 
 /* ── Forward reference so libraryStore can register addRecent ── */
 let _addRecent = null;
@@ -28,7 +27,7 @@ export const _regAddRecent = fn => { _addRecent = fn; };
 async function fetchRelated(videoId, limit = 20) {
   if (!videoId) return [];
   try {
-    const r = await fetch(`${API}/api/youtube/related?v=${encodeURIComponent(videoId)}`);
+    const r = await apiFetch(`/api/youtube/related?v=${encodeURIComponent(videoId)}`);
     if (!r.ok) return [];
     const { items = [] } = await r.json();
     return items

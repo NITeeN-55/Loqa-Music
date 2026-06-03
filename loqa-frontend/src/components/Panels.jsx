@@ -7,7 +7,7 @@ import useAuthStore from '../stores/authStore.js';
 
 /* ── Auth Screen ──────────────────────────────────────── */
 export function AuthScreen({ C, isMobile }) {
-  const { mode, loading, error, setMode, login, register } = useAuthStore();
+  const { mode, loading, waking, error, setMode, login, register } = useAuthStore();
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [showPw, setShowPw] = useState(false);
   const emailRef = useRef(null);
@@ -126,6 +126,19 @@ export function AuthScreen({ C, isMobile }) {
             </div>
           </div>
 
+          {/* Waking up banner (Render free-tier cold start) */}
+          {waking && !error && (
+            <div role="status" style={{
+              fontSize: 13, color: '#f59e0b',
+              background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.25)',
+              borderRadius: 8, padding: '10px 14px', marginBottom: 16,
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <span style={{ animation: 'spin 1.2s linear infinite', display: 'inline-block' }}>⏳</span>
+              <span>Server is waking up — this takes ~15 seconds on first use…</span>
+            </div>
+          )}
+
           {/* Error */}
           {error && (
             <div role="alert" style={{
@@ -147,7 +160,7 @@ export function AuthScreen({ C, isMobile }) {
               opacity: loading ? 0.7 : 1, transition: 'opacity .2s',
               fontFamily: 'inherit',
             }}>
-            {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+            {waking ? 'Waking server…' : loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
           </button>
         </form>
 

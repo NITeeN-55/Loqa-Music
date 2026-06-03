@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './styles/index.css';
 import { DARK, LIGHT, gradStr, loadLS, saveLS, getCachedSong } from './utils/constants.js';
+import { apiFetch } from './utils/api.js';
 import { Svg, I, EqBars } from './components/Icons.jsx';
 import { Toaster, CtxMenu, PlayerBar } from './components/UI.jsx';
 import YouTubePlayer from './components/YouTubePlayer.jsx';
@@ -15,8 +16,6 @@ import useLibraryStore from './stores/libraryStore.js';
 import useUIStore from './stores/uiStore.js';
 import useEqStore from './stores/eqStore.js';
 import { useMediaQuery, useKeyboardShortcuts, useMediaSession, useNetworkStatus } from './hooks/index.js';
-
-const API = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'https://loqa-music.onrender.com';
 
 // Stable portal container — never changes, never inside #root
 const PORTAL_ROOT = document.getElementById('loqa-portals') || document.body;
@@ -141,7 +140,7 @@ export default function App() {
       if (seedArtist) params.set('seed_artist', seedArtist);
       if (seedId)     params.set('seed_id',     seedId);
 
-      const r = await fetch(`${API}/api/recommendations?${params}`, {
+      const r = await apiFetch(`/api/recommendations?${params}`, {
         headers: getHeaders(),
       });
       if (r.ok) {
