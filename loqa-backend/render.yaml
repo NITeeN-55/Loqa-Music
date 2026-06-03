@@ -18,7 +18,7 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: ALLOWED_ORIGINS
-        sync: false   # e.g. https://loqa-music.vercel.app
+        value: https://loqa-music.vercel.app
       - key: JWT_EXPIRES_IN
         value: 7d
       - key: INNERTUBE_API_KEY
