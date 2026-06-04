@@ -4,6 +4,7 @@
  */
 import { create } from 'zustand';
 import { loadLS, saveLS } from '../utils/constants.js';
+import { apiFetch } from '../utils/api.js';
 
 export const EQ_BANDS = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
@@ -25,7 +26,7 @@ const useEqStore = create((set, get) => ({
   enabled:  saved.eqEnabled ?? true,
   preset:   saved.eqPreset  || 'flat',
   bands:    saved.eqBands   || [...EQ_PRESETS.flat],
-  gain:     saved.eqGain    ?? 1.0,  // master gain 0.5–2.0
+  gain:     saved.eqGain    ?? 1.0,
 
   setEnabled: (v) => { set({ enabled: v }); saveLS({ ...loadLS(), eqEnabled: v }); },
 
@@ -50,28 +51,29 @@ const useEqStore = create((set, get) => ({
     saveLS({ ...loadLS(), eqBands: bands, eqPreset: 'flat', eqGain: 1.0 });
   },
 
-  /** Sync to backend */
-  syncToServer: async (headers) => {
+  /** Sync EQ settings to backend — uses apiFetch so it works in production */
+  syncToServer: async (authHeaders) => {
     const { preset, bands } = get();
     try {
-      await fetch('/api/preferences', {
+      await apiFetch('/api/preferences', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...headers },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ eqPreset: preset, eqBands: bands }),
       });
-    } catch {}
+    } catch { /* non-critical — settings already saved locally */ }
   },
 
-  loadFromServer: async (headers) => {
+  /** Load EQ settings from backend on login */
+  loadFromServer: async (authHeaders) => {
     try {
-      const r = await fetch('/api/preferences', { headers });
+      const r = await apiFetch('/api/preferences', { headers: authHeaders });
       if (!r.ok) return;
       const d = await r.json();
       if (d.eqBands?.length === 10) {
         set({ bands: d.eqBands, preset: d.eqPreset || 'flat' });
         saveLS({ ...loadLS(), eqBands: d.eqBands, eqPreset: d.eqPreset });
       }
-    } catch {}
+    } catch { /* offline or not authed — keep local settings */ }
   },
 }));
 

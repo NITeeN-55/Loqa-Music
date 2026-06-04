@@ -12,11 +12,13 @@ services:
         value: production
       - key: PORT
         value: "3000"
-      # Set these manually in the Render dashboard → Environment tab:
+      # ⚠️  Set MONGODB_URI and JWT_SECRET manually in Render dashboard → Environment tab
+      # They are marked sync:false so they are NEVER committed to git
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
         sync: false
+      # ALLOWED_ORIGINS: comma-separated list of allowed frontend URLs (no trailing slashes)
       - key: ALLOWED_ORIGINS
         value: https://loqa-music.vercel.app
       - key: JWT_EXPIRES_IN

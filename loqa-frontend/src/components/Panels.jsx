@@ -102,7 +102,7 @@ export function AuthScreen({ C, isMobile }) {
               value={form.email} onChange={set_('email')} style={inp} />
           </div>
 
-          <div style={{ marginBottom: error ? 12 : 20 }}>
+          <div style={{ marginBottom: (error || waking) ? 12 : 20 }}>
             <label htmlFor="auth-password" style={{ display: 'block', fontSize: 12, color: C.text2, marginBottom: 6, fontWeight: 500 }}>
               Password
             </label>
