@@ -56,7 +56,7 @@ export function AuthScreen({ C, isMobile }) {
         }} />
       ))}
 
-      <div style={{
+      <div className="loqa-auth-card" style={{
         background: C.surface, border: `1px solid ${C.border}`,
         borderRadius: 24, padding: isMobile ? '32px 24px' : '44px 40px',
         width: '100%', maxWidth: 420, position: 'relative',
@@ -192,7 +192,7 @@ export function QueuePanel({ C, queue, related, song: cur, playing, onPlay, onRe
   useFocusTrap(ref, true);
 
   return (
-    <div ref={ref} role="dialog" aria-label="Play queue" aria-modal="true"
+    <div ref={ref} role="dialog" aria-label="Play queue" aria-modal="true" className="loqa-queue-panel"
       style={{
         position: 'fixed', right: 0, top: 0, bottom: 0,
         width: isMobile ? '100%' : 320,
@@ -330,11 +330,11 @@ export function PlaylistModal({ C, mode, pl, onSave, onClose }) {
   useFocusTrap(ref, true);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: C.overlay, zIndex: 500,
+    <div className="loqa-modal-overlay" style={{ position: 'fixed', inset: 0, background: C.overlay, zIndex: 500,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
       onClick={onClose}>
       <div ref={ref}
-        style={{ background: C.surface, borderRadius: 20, padding: 32, width: '100%', maxWidth: 380,
+        className="loqa-modal-inner" style={{ background: C.surface, borderRadius: 20, padding: 32, width: '100%', maxWidth: 380,
           border: `1px solid ${C.border}`, boxShadow: '0 40px 80px rgba(0,0,0,.5)',
           animation: 'fadeUp .2s ease' }}
         onClick={e => e.stopPropagation()}>
@@ -454,7 +454,7 @@ function AccountTab({ C, user }) {
       {/* ── Edit Name ── */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 10 }}>Display Name</div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="loqa-account-name-row" style={{ display: 'flex', gap: 8 }}>
           <input value={name} onChange={e => setName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && saveName()}
             placeholder="Your display name" style={{ ...inp, flex: 1 }} />
@@ -533,11 +533,11 @@ export function SettingsModal({ C, settings, onSave, onClose, user }) {
   ];
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: C.overlay, zIndex: 500,
+    <div className="loqa-modal-overlay" style={{ position: 'fixed', inset: 0, background: C.overlay, zIndex: 500,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
       onClick={onClose}>
       <div ref={ref}
-        style={{ background: C.surface, borderRadius: 20, padding: 32, width: '100%', maxWidth: 460,
+        className="loqa-settings-modal" style={{ background: C.surface, borderRadius: 20, padding: 32, width: '100%', maxWidth: 460,
           border: `1px solid ${C.border}`, boxShadow: '0 40px 80px rgba(0,0,0,.5)',
           maxHeight: '90vh', overflowY: 'auto', animation: 'fadeUp .2s ease' }}
         onClick={e => e.stopPropagation()}>

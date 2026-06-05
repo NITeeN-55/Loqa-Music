@@ -532,7 +532,7 @@ export default function App() {
 
         {/* Keyboard hint strip */}
         {!mob && (
-          <div aria-hidden="true" style={{ padding:'4px 22px', background:C.bg2,
+          <div aria-hidden="true" className="loqa-kbd-hints" style={{ padding:'4px 22px', background:C.bg2,
             borderBottom:`1px solid ${C.border}`, display:'flex', gap:14,
             fontSize:10.5, color:C.text3, flexShrink:0, flexWrap:'wrap' }}>
             {[['Space','Play/Pause'],['←→','Skip'],['Shift+←→','Seek ±5s'],
@@ -551,7 +551,7 @@ export default function App() {
 
         {/* ── Main content ── */}
         <main id="main" ref={mainRef} tabIndex={-1} aria-label="Main content"
-          style={{ flex:1, overflowY:'auto', padding: mob ? '14px 12px 0' : '24px 28px 0' }}>
+          style={{ flex:1, overflowY:'auto', padding: mob ? '14px 12px 0' : '24px 28px 0' }} className={mob ? 'loqa-main-mobile' : ''}>
 
           {view === 'home' && (
             <HomeView C={C} song={song} playing={playing} liked={liked}
@@ -593,7 +593,7 @@ export default function App() {
               onBack={() => nav('home')} />
           )}
 
-          <div style={{ height: mob ? 110 : 24 }} aria-hidden="true" />
+          <div style={{ height: mob ? 148 : 24 }} aria-hidden="true" />
         </main>
 
         {/* Player bar */}
@@ -617,10 +617,11 @@ export default function App() {
 
       {/* Mobile bottom nav */}
       {mob && (
-        <nav aria-label="Mobile navigation"
+        <nav aria-label="Mobile navigation" className="loqa-mobile-nav"
           style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:50,
                    background:C.player, borderTop:`1px solid ${C.border}`,
-                   display:'flex', justifyContent:'space-around', alignItems:'center', height:56 }}>
+                   display:'flex', justifyContent:'space-around', alignItems:'center',
+                   height:56, paddingBottom:'env(safe-area-inset-bottom, 0px)' }}>
           {NAV.filter(n => n.id !== 'liked').map(item => {
             const active = view === item.id;
             return (
@@ -628,19 +629,19 @@ export default function App() {
                 aria-label={item.label} aria-current={active ? 'page' : undefined}
                 style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2,
                          background:'none', border:'none', cursor:'pointer',
-                         color: active ? C.accent : C.text3, padding:'4px 0', transition:'color .15s',
-                         fontFamily:'inherit' }}>
+                         color: active ? C.accent : C.text3, padding:'6px 0', transition:'color .15s',
+                         fontFamily:'inherit', minHeight:44, minWidth:44 }}>
                 <Svg d={item.icon} size={20} stroke="currentColor" />
-                <span style={{ fontSize:10, fontWeight: active ? 700 : 500 }}>{item.label}</span>
+                <span className="loqa-mobile-nav-label" style={{ fontSize:10, fontWeight: active ? 700 : 500 }}>{item.label}</span>
               </button>
             );
           })}
           <button onClick={() => setSidebar(p => !p)} aria-label="More"
             style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2,
                      background:'none', border:'none', cursor:'pointer',
-                     color:C.text3, padding:'4px 0', fontFamily:'inherit' }}>
+                     color:C.text3, padding:'6px 0', fontFamily:'inherit', minHeight:44, minWidth:44 }}>
             <Svg d={I.menu} size={20} stroke="currentColor" />
-            <span style={{ fontSize:10, fontWeight:500 }}>More</span>
+            <span className="loqa-mobile-nav-label" style={{ fontSize:10, fontWeight:500 }}>More</span>
           </button>
         </nav>
       )}

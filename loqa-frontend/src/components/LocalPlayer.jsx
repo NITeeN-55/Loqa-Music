@@ -218,7 +218,7 @@ export default function LocalPlayer({ C, isMobile, onSwitchToYT }) {
               </div>
               <div style={{ fontSize: 12, color: C.text2 }}>{current.artist} · Local file · EQ active</div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="loqa-local-controls" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button onClick={() => { const idx = tracks.findIndex(t => t.id === current.id); if (idx > 0) playTrack(tracks[idx - 1]); }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text }}>
                 <Svg d={I.prev} size={18} fill="currentColor" stroke="currentColor" />
@@ -267,7 +267,7 @@ export default function LocalPlayer({ C, isMobile, onSwitchToYT }) {
           <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 14 }}>
             Equalizer <span style={{ fontSize: 11, color: C.accent, fontWeight: 500 }}>Active — real-time audio processing</span>
           </div>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 12, overflowX: 'auto' }}>
+          <div className="loqa-eq-presets" style={{ display: 'flex', gap: 6, marginBottom: 12, overflowX: 'auto' }}>
             {['flat','bass','treble','vocal','pop','rock','hiphop','electronic','lofi'].map(p => (
               <button key={p} onClick={() => eqStore.setPreset(p)}
                 style={{ padding: '4px 10px', borderRadius: 14, border: 'none', cursor: 'pointer', flexShrink: 0,
@@ -313,7 +313,7 @@ export default function LocalPlayer({ C, isMobile, onSwitchToYT }) {
             const active = current?.id === track.id;
             return (
               <div key={track.id} onClick={() => playTrack(track)}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10,
+                className="loqa-song-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10, minHeight: 56,
                   background: active ? `rgba(${C.accentRgb},.1)` : 'transparent', cursor: 'pointer',
                   transition: 'background .15s' }}>
                 <span style={{ width: 24, textAlign: 'center', fontSize: 12, color: active ? C.accent : C.text3 }}>

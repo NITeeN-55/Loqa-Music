@@ -81,7 +81,7 @@ export default function Equalizer({ C, eqStore, onClose, isMobile, isYoutube }) 
   };
 
   return (
-    <div style={{
+    <div className="loqa-eq-panel" style={{
       position: 'fixed',
       bottom: isMobile ? 56 : 80,
       right: isMobile ? 0 : 24,

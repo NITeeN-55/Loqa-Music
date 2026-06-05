@@ -1,0 +1,498 @@
+/* ════════════════════════════════════════════════════════════════
+   Loqa Music — Responsive Layout Fixes
+   Breakpoints: 320px · 375px · 425px · 768px · 1024px
+   Goal: no horizontal scroll, all elements touch-friendly,
+         desktop appearance fully preserved.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── 0. Global overflow guard ─────────────────────────────────── */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* ── 1. HScroll grid — prevent overflow on narrow screens ─────── */
+.loqa-hscroll {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 160px;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  /* Hide scrollbar visually but keep scrollability */
+  scrollbar-width: thin;
+}
+.loqa-hscroll::-webkit-scrollbar { height: 4px; }
+.loqa-hscroll-item { scroll-snap-align: start; }
+
+/* ── 2. Song cards in HScroll — smaller on 375px ─────────────── */
+@media (max-width: 425px) {
+  .loqa-hscroll {
+    grid-auto-columns: 140px;
+    gap: 10px;
+  }
+}
+@media (max-width: 375px) {
+  .loqa-hscroll {
+    grid-auto-columns: 130px;
+    gap: 8px;
+  }
+}
+
+/* ── 3. Section heading overflow ──────────────────────────────── */
+.loqa-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+.loqa-section-header h2 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 4. SongRow — touch target & overflow ─────────────────────── */
+.loqa-song-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  min-height: 56px; /* touch-friendly */
+}
+@media (max-width: 375px) {
+  .loqa-song-row { gap: 8px; padding: 8px 8px; }
+}
+
+/* ── 5. Auth screen — tight screens ──────────────────────────── */
+@media (max-width: 425px) {
+  .loqa-auth-card {
+    padding: 24px 18px !important;
+    border-radius: 18px !important;
+  }
+}
+@media (max-width: 320px) {
+  .loqa-auth-card {
+    padding: 20px 14px !important;
+    border-radius: 14px !important;
+  }
+  .loqa-auth-card h1 { font-size: 22px !important; }
+}
+
+/* ── 6. Player bar — mobile height & touch zones ──────────────── */
+.loqa-player-mobile {
+  /* Raised above the bottom nav (56px) */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── 7. Mobile bottom nav — safe area padding ────────────────── */
+.loqa-mobile-nav {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  height: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ── 8. Main content — account for both player + bottom nav ───── */
+@media (max-width: 768px) {
+  #main {
+    /* Player bar ~70px + bottom nav 56px + breathing room */
+    padding-bottom: 136px !important;
+  }
+}
+
+/* ── 9. Modal — full-width on small screens ───────────────────── */
+.loqa-modal-inner {
+  width: 100%;
+  max-width: 420px;
+}
+@media (max-width: 480px) {
+  .loqa-modal-inner {
+    max-width: 100% !important;
+    border-radius: 18px !important;
+    padding: 24px 18px !important;
+    margin: 0 8px;
+  }
+}
+@media (max-width: 375px) {
+  .loqa-modal-inner {
+    margin: 0 4px;
+    padding: 20px 14px !important;
+  }
+}
+
+/* ── 10. Settings modal — narrow screens ─────────────────────── */
+.loqa-settings-modal {
+  max-width: 460px;
+  width: 100%;
+}
+@media (max-width: 520px) {
+  .loqa-settings-modal {
+    max-width: 100% !important;
+    padding: 20px 16px !important;
+    border-radius: 20px 20px 0 0 !important;
+    align-self: flex-end;
+    max-height: 92vh !important;
+  }
+}
+
+/* ── 11. Settings toggle rows — prevent text overflow ────────── */
+.loqa-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+}
+.loqa-settings-row-text { flex: 1; min-width: 0; }
+.loqa-settings-row-text > div:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 12. Queue panel — full-width on 425px- ──────────────────── */
+@media (max-width: 425px) {
+  .loqa-queue-panel {
+    width: 100% !important;
+  }
+}
+
+/* ── 13. EQ panel — full-width bottom sheet on mobile ────────── */
+@media (max-width: 768px) {
+  .loqa-eq-panel {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    border-radius: 20px 20px 0 0 !important;
+  }
+}
+
+/* ── 14. EQ band sliders — minimum touch size ────────────────── */
+.loqa-eq-band {
+  min-width: 28px;
+}
+@media (max-width: 425px) {
+  .loqa-eq-band { min-width: 22px; }
+}
+@media (max-width: 375px) {
+  .loqa-eq-band { min-width: 18px; }
+}
+
+/* ── 15. Genre grid — 2-col on mobile ────────────────────────── */
+.loqa-genre-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+@media (max-width: 768px) {
+  .loqa-genre-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 375px) {
+  .loqa-genre-grid {
+    gap: 7px;
+  }
+  .loqa-genre-grid button {
+    padding: 12px 10px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* ── 16. Trending grid — single col on mobile ────────────────── */
+.loqa-trending-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+@media (max-width: 768px) {
+  .loqa-trending-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── 17. Hero section — prevent overflow ─────────────────────── */
+.loqa-hero {
+  border-radius: 20px;
+  margin-bottom: 32px;
+  position: relative;
+  overflow: hidden;
+}
+.loqa-hero-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+@media (max-width: 375px) {
+  .loqa-hero { padding: 20px 16px !important; }
+  .loqa-hero h1 { font-size: 20px !important; }
+  .loqa-hero-buttons button { width: 100%; justify-content: center; }
+}
+
+/* ── 18. Header — compact on small screens ───────────────────── */
+@media (max-width: 375px) {
+  .loqa-header { padding: 8px 10px !important; }
+  .loqa-header h1 { font-size: 14px !important; }
+}
+
+/* ── 19. Search bar — full width, no truncation ──────────────── */
+.loqa-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+@media (max-width: 425px) {
+  .loqa-search-bar { gap: 8px; padding: 0 12px !important; }
+  .loqa-search-bar button[type="submit"] { padding: 8px 12px !important; }
+}
+@media (max-width: 375px) {
+  .loqa-search-bar button[type="submit"] {
+    padding: 7px 10px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* ── 20. PlaylistDetail header — wrap on narrow screens ──────── */
+.loqa-pl-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+  flex-wrap: nowrap;
+}
+@media (max-width: 425px) {
+  .loqa-pl-detail-header { gap: 10px; }
+  .loqa-pl-detail-header h2 { font-size: 17px !important; }
+  .loqa-pl-detail-header button[aria-label] { padding: 8px 14px !important; }
+}
+@media (max-width: 375px) {
+  .loqa-pl-detail-header {
+    flex-wrap: wrap;
+  }
+  .loqa-pl-detail-header > button:first-child { order: 0; }
+  .loqa-pl-detail-header > div:nth-child(2)   { display: none; } /* hide big icon on 375 */
+  .loqa-pl-detail-header > div:nth-child(3)   { order: 1; flex: 1 1 calc(100% - 48px); }
+  .loqa-pl-detail-header > button:last-child  { order: 2; width: 100%; justify-content: center; }
+}
+
+/* ── 21. Library cards — tap targets ─────────────────────────── */
+.loqa-lib-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  cursor: pointer;
+  min-height: 72px; /* WCAG 2.5.8 — 24px touch target but we go larger */
+}
+@media (max-width: 375px) {
+  .loqa-lib-card { padding: 12px 12px; gap: 10px; }
+}
+
+/* ── 22. Sidebar — fits on 320px ─────────────────────────────── */
+@media (max-width: 320px) {
+  aside[aria-label="Main navigation"] {
+    width: 240px !important;
+  }
+}
+
+/* ── 23. Toaster — full width on mobile ──────────────────────── */
+@media (max-width: 480px) {
+  .loqa-toaster {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 130px !important;
+    align-items: stretch !important;
+  }
+  .loqa-toaster > div {
+    max-width: 100% !important;
+  }
+}
+
+/* ── 24. Context menu — repositions on narrow screens ────────── */
+@media (max-width: 480px) {
+  .loqa-ctx-menu {
+    /* Slide in from bottom on very small screens */
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    bottom: 130px !important;
+    width: 100% !important;
+    border-radius: 16px 16px 0 0 !important;
+  }
+}
+
+/* ── 25. Account tab forms — stack buttons on mobile ─────────── */
+@media (max-width: 480px) {
+  .loqa-account-name-row {
+    flex-direction: column !important;
+  }
+  .loqa-account-name-row button {
+    width: 100% !important;
+  }
+}
+
+/* ── 26. Local player — compact layout ───────────────────────── */
+@media (max-width: 425px) {
+  .loqa-local-controls { gap: 8px !important; }
+  .loqa-local-controls button { padding: 4px !important; }
+}
+
+/* ── 27. Player bar mobile — more padding for small phones ───── */
+@media (max-width: 375px) {
+  .loqa-player-mobile-inner {
+    padding: 8px 10px 12px !important;
+    gap: 7px !important;
+  }
+  .loqa-player-mobile-inner .loqa-play {
+    width: 40px !important;
+    height: 40px !important;
+  }
+}
+@media (max-width: 320px) {
+  .loqa-player-mobile-inner { padding: 6px 8px 10px !important; gap: 5px !important; }
+  .loqa-player-mobile-inner .loqa-play { width: 36px !important; height: 36px !important; }
+}
+
+/* ── 28. Focus rings — ensure 2px visible on all tap targets ─── */
+@media (max-width: 768px) {
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+}
+
+/* ── 29. Keyboard hints bar — fully hidden on mobile ─────────── */
+@media (max-width: 768px) {
+  .loqa-kbd-hints { display: none !important; }
+}
+
+/* ── 30. Landscape phone — compact player, more content ──────── */
+@media (max-width: 768px) and (orientation: landscape) {
+  #main {
+    padding-bottom: 80px !important;
+  }
+  .loqa-player-mobile { max-height: 58px; }
+  .loqa-hero { padding: 16px !important; }
+  .loqa-hero h1 { font-size: 18px !important; }
+}
+
+/* ── 31. Tablet (768–1024) — intermediate adjustments ────────── */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .loqa-genre-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .loqa-trending-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── 32. Playlist modal overlay — center on larger phones ─────── */
+@media (max-width: 768px) {
+  .loqa-modal-overlay {
+    align-items: flex-end !important;
+    padding-bottom: 0 !important;
+  }
+  .loqa-modal-inner {
+    border-radius: 20px 20px 0 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+}
+@media (min-width: 480px) and (max-width: 768px) {
+  .loqa-modal-overlay {
+    align-items: center !important;
+    padding: 20px !important;
+  }
+  .loqa-modal-inner {
+    border-radius: 20px !important;
+    max-width: 400px !important;
+  }
+}
+
+/* ── 33. Waking / error banners — allow text wrap ────────────── */
+.loqa-banner { flex-wrap: wrap; }
+.loqa-banner span:last-child { flex: 1; min-width: 200px; }
+
+/* ── 34. Recommendations header row ──────────────────────────── */
+.loqa-recs-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 12px;
+}
+.loqa-recs-header > div { min-width: 0; flex: 1; }
+.loqa-recs-header button { flex-shrink: 0; }
+@media (max-width: 375px) {
+  .loqa-recs-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .loqa-recs-header button { width: 100%; justify-content: center; }
+}
+
+/* ── 35. Touch tap highlight removal (iOS) ───────────────────── */
+button, [role="button"], a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── 36. Input fields — prevent iOS zoom (min 16px font) ─────── */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ── 37. Prevent long song titles from breaking layouts ──────── */
+.loqa-song-title,
+.loqa-song-artist {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ── 38. Local Player drop zone — responsive ─────────────────── */
+.loqa-drop-zone {
+  min-height: 160px;
+  padding: 20px;
+}
+@media (max-width: 375px) {
+  .loqa-drop-zone { min-height: 120px; padding: 16px; }
+  .loqa-drop-zone p { font-size: 13px !important; }
+}
+
+/* ── 39. EQ preset selector overflow ─────────────────────────── */
+.loqa-eq-presets {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.loqa-eq-presets::-webkit-scrollbar { display: none; }
+.loqa-eq-preset-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ── 40. Mobile nav label — hidden on 320px ──────────────────── */
+@media (max-width: 320px) {
+  .loqa-mobile-nav-label { display: none !important; }
+  .loqa-mobile-nav button { gap: 0 !important; }
+}

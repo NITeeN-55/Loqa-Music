@@ -12,9 +12,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%;overflow:hidden}
-    body{background:#0A0A0F;color:#F0F0FF;font-family:'Inter',-apple-system,sans-serif}
-    #root{height:100%;display:flex;flex-direction:column}
+    html,body{height:100%;overflow:hidden;max-width:100%;-webkit-text-size-adjust:100%}
+    body{background:#0A0A0F;color:#F0F0FF;font-family:'Inter',-apple-system,sans-serif;
+         -webkit-overflow-scrolling:touch;overscroll-behavior:none}
+    #root{height:100%;display:flex;flex-direction:column;overflow:hidden}
+    /* Prevent content from overflowing on small screens */
+    img,video,svg{max-width:100%;height:auto}
     /* Dedicated portal container — sits alongside #root, never inside it */
     #loqa-portals{position:fixed;inset:0;pointer-events:none;z-index:100}
     #loqa-portals>*{pointer-events:auto}

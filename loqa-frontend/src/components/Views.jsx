@@ -26,7 +26,7 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
   return (
     <div>
       {/* Hero */}
-      <div style={{ borderRadius: 20, background: `linear-gradient(135deg,${C.bg3},${C.bg2})`,
+      <div className="loqa-hero" style={{ borderRadius: 20, background: `linear-gradient(135deg,${C.bg3},${C.bg2})`,
         padding: isMobile ? '24px 20px' : '36px 40px', marginBottom: 32,
         position: 'relative', overflow: 'hidden' }}>
         <div aria-hidden="true" style={{ position: 'absolute', top: -60, right: -60, width: 300, height: 300,
@@ -37,7 +37,7 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
         <p style={{ color: C.text2, fontSize: 14, margin: '0 0 20px' }}>
           Your personal music stream, powered by YouTube
         </p>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="loqa-hero-buttons" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button onClick={() => go('search')}
             style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px',
               background: gradStr(0), border: 'none', borderRadius: 12,
@@ -57,7 +57,7 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
       {(recommendations?.length > 0 || recsLoading) && (
         <div style={{ marginBottom: 32 }}>
           {/* Header row */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: 12 }}>
+          <div className="loqa-recs-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: 12 }}>
             <div style={{ minWidth: 0 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: C.text, margin: '0 0 4px' }}>
                 ⭐ Recommended for You
@@ -112,7 +112,7 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
         onAction={() => go('search', { searchQ: 'trending music' })}>
         {loading
           ? <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={32} /></div>
-          : <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 4 }}>
+          : <div className="loqa-trending-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 4 }}>
               {trending.slice(0, isMobile ? 6 : 10).map((s, i) => (
                 <SongRow key={s.id} song={s} idx={i} current={cur} playing={playing}
                   liked={liked.includes(s.id)}
@@ -139,7 +139,7 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
 
       {/* Genre grid */}
       <Section title="Browse Genres" C={C}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
+        <div className="loqa-genre-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
           {GENRES.map((g, i) => (
             <button key={g} onClick={() => go('genre', { genre: g })}
               style={{ padding: '16px 14px', borderRadius: 12, background: gradStr(i),
@@ -194,15 +194,15 @@ export function SearchView({ C, song: cur, playing, liked, onPlay, onLike, onCtx
     <div>
       {/* Search input */}
       <div style={{ position: 'relative', marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px',
+        <div className="loqa-search-bar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px',
           background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 14,
-          boxShadow: '0 4px 24px rgba(0,0,0,.1)' }}>
+          boxShadow: '0 4px 24px rgba(0,0,0,.1)', overflow: 'hidden' }}>
           <Svg d={I.search} size={18} stroke={C.text3} />
           <input ref={inputRef} value={q} onChange={e => onInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); doSearch(q); setShowSug(false); } if (e.key === 'Escape') setShowSug(false); }}
             onFocus={() => suggestions.length && setShowSug(true)}
             placeholder="Search songs, artists, albums…" aria-label="Search music"
-            style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: C.text, fontSize: 16, padding: '14px 0', fontFamily: 'inherit' }} />
+            style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none', color: C.text, fontSize: 16, padding: '14px 0', fontFamily: 'inherit' }} />
           {q && <button onClick={() => { setQ(''); setResults([]); setShowSug(false); inputRef.current?.focus(); }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text3, padding: 4 }}>
             <Svg d={I.close} size={16} stroke="currentColor" />
@@ -294,7 +294,7 @@ export function LibraryView({ C, playlists, liked, onOpen, onDelete, onEdit, onC
       </div>
       {/* Liked */}
       <div onClick={() => onOpen({ id: 'liked', name: 'Liked Songs', songs: liked, ci: 1 })}
-        style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 14,
+        className="loqa-lib-card" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 14,
           background: C.surface, border: `1px solid ${C.border}`, marginBottom: 12, cursor: 'pointer' }}
         onMouseEnter={e => e.currentTarget.style.background = C.surface2}
         onMouseLeave={e => e.currentTarget.style.background = C.surface}>
@@ -356,7 +356,7 @@ export function PlaylistDetailView({ C, playlist, song: cur, playing, liked, onP
   const songs   = (playlist.songs || []).map(id => getCachedSong(id)).filter(Boolean);
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+      <div className="loqa-pl-detail-header" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
         <button onClick={onBack} aria-label="Back"
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text2, padding: 4 }}>
           <Svg d={I.back} size={22} stroke="currentColor" />

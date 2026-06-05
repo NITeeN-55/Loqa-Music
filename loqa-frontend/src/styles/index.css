@@ -45,3 +45,5 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 @keyframes eq3{0%,100%{height:80%}50%{height:40%}}
 .fade-up{animation:fadeUp .3s ease forwards}
 .spin{animation:spin 1s linear infinite}
+/* ─── Responsive overrides — loaded last to win specificity ─── */
+@import './responsive.css';
