@@ -1,0 +1,730 @@
+/* =============================================================
+   Loqa Music — mobile.css
+   Single-file responsive fix. Import AFTER index.css in main.jsx:
+     import './styles/mobile.css';
+   No JSX changes required.
+   ============================================================= */
+
+/* ─────────────────────────────────────────────────────────────
+   0. ROOT VARIABLES
+   ─────────────────────────────────────────────────────────────
+   Heights used everywhere so they stay in sync.               */
+:root {
+  --mob-player-h: 74px;   /* mobile player bar                 */
+  --mob-nav-h:    56px;   /* mobile bottom nav                 */
+  --mob-bottom:   calc(var(--mob-player-h) + var(--mob-nav-h));
+}
+
+/* ─────────────────────────────────────────────────────────────
+   1. CRITICAL: Unblock scrolling on mobile
+   index.html has `html,body { overflow:hidden }` which prevents
+   ANY scrolling on mobile. We must restore it for small screens.
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* The app shell uses height:100vh + internal flex scrolling.
+     We keep it intact but ensure no element bleeds horizontally. */
+  html, body, #root {
+    overflow-x: hidden !important;
+    max-width: 100vw;
+  }
+
+  /* Every flex/grid child must be allowed to shrink below content size */
+  * {
+    min-width: 0;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   2. SIDEBAR — fixed width 240px overflows 320px screens
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* Sidebar rendered as position:fixed on mobile */
+  aside[aria-label="Main navigation"] {
+    width: min(240px, 85vw) !important;
+    max-width: 85vw !important;
+  }
+
+  /* Username text inside sidebar footer */
+  aside[aria-label="Main navigation"] span[style*="maxWidth:90"],
+  aside[aria-label="Main navigation"] span[style*="maxWidth: 90"] {
+    max-width: 70px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   3. HEADER — title overflows on 320px
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  header {
+    padding: 10px 12px !important;
+    /* Prevent header itself from overflowing */
+    overflow: hidden;
+  }
+
+  /* Page title h1 */
+  header h1 {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: calc(100vw - 160px) !important;
+    font-size: 15px !important;
+  }
+
+  /* Header right side — avatar + EQ button */
+  header > div:last-child {
+    flex-shrink: 0;
+    gap: 6px !important;
+  }
+
+  /* EQ button — smaller on mobile */
+  header button[aria-label="Equalizer"] {
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+  }
+}
+
+@media (max-width: 375px) {
+  header h1 {
+    font-size: 13px !important;
+    max-width: calc(100vw - 140px) !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   4. MAIN CONTENT AREA — must scroll internally and leave room
+      for the fixed player bar + bottom nav
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  main[aria-label="Main content"] {
+    /* Scroll the main area, never the page body */
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    /* Leave space above the fixed player + nav */
+    padding-bottom: calc(var(--mob-bottom) + 20px) !important;
+  }
+
+  /* The existing spacer div at bottom of main (height:110) — boost it */
+  main[aria-label="Main content"] > div:last-child[aria-hidden="true"] {
+    height: 20px !important; /* we use padding-bottom on <main> instead */
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   5. PLAYER BAR — must sit above mobile bottom nav
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  div[role="region"][aria-label="Music player"] {
+    /* Stick the player bar just above the bottom nav */
+    position: sticky !important;
+    bottom: var(--mob-nav-h) !important;
+    z-index: 45 !important;
+    /* Prevent overflow */
+    overflow: hidden !important;
+    max-width: 100vw !important;
+  }
+
+  /* Player bar content row — tighter gap on tiny screens */
+  div[role="region"][aria-label="Music player"] > div:last-child {
+    gap: 6px !important;
+    padding: 10px 10px 12px !important;
+  }
+
+  /* Thumbnail — slightly smaller on very tiny screens */
+  div[role="region"][aria-label="Music player"] div[style*="position:'relative'"][style*="flexShrink:0"],
+  div[role="region"][aria-label="Music player"] div[style*="position: 'relative'"] {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 375px) {
+  /* Even tighter controls on very small phones */
+  div[role="region"][aria-label="Music player"] > div:last-child {
+    gap: 4px !important;
+    padding: 8px 8px 10px !important;
+  }
+
+  /* Shrink Like + Prev/Next buttons slightly */
+  div[role="region"][aria-label="Music player"] button {
+    padding: 5px !important;
+  }
+
+  /* Play button stays circular and readable */
+  div[role="region"][aria-label="Music player"] button[aria-label="Play"],
+  div[role="region"][aria-label="Music player"] button[aria-label="Pause"] {
+    width: 42px !important;
+    height: 42px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   6. MOBILE BOTTOM NAV — touch targets + safe area
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  nav[aria-label="Mobile navigation"] {
+    height: var(--mob-nav-h) !important;
+    /* iOS notch */
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    height: calc(var(--mob-nav-h) + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  nav[aria-label="Mobile navigation"] button {
+    /* Minimum 44px tap target (WCAG 2.5.5) */
+    min-height: 44px !important;
+    padding: 4px 0 !important;
+    /* Prevent text from wrapping or overflowing */
+    overflow: hidden;
+  }
+
+  nav[aria-label="Mobile navigation"] button span {
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    /* Keep label on one line */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50px;
+    display: block;
+  }
+}
+
+/* On 320px screens hide nav labels — icons only */
+@media (max-width: 340px) {
+  nav[aria-label="Mobile navigation"] button span {
+    display: none !important;
+  }
+
+  nav[aria-label="Mobile navigation"] {
+    height: 52px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   7. HORIZONTAL SCROLL RAILS — internal scroll, never page overflow
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* HScroll component uses gridAutoFlow:column */
+  div[style*="gridAutoFlow"][style*="column"],
+  div[style*="gridAutoFlow: column"],
+  div[style*="gridAutoFlow:'column'"] {
+    /* Clip overflow within the rail */
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    /* iOS momentum scrolling */
+    -webkit-overflow-scrolling: touch !important;
+    /* Hide scrollbar decoratively */
+    scrollbar-width: none !important;
+    /* Snap to cards */
+    scroll-snap-type: x mandatory !important;
+    /* Cap to viewport — never push page width */
+    max-width: 100vw !important;
+    /* Extend to screen edges with bleed technique */
+    margin-left: -12px !important;
+    margin-right: -12px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    box-sizing: border-box !important;
+  }
+
+  div[style*="gridAutoFlow"][style*="column"]::-webkit-scrollbar,
+  div[style*="gridAutoFlow: column"]::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* Cards inside HScroll — smaller on narrow screens */
+  div[style*="gridAutoColumns"][style*="160px"] {
+    grid-auto-columns: 148px !important;
+  }
+}
+
+@media (max-width: 375px) {
+  div[style*="gridAutoColumns"][style*="160px"] {
+    grid-auto-columns: 132px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   8. SONG ROWS — too wide, too many elements on narrow screens
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* SongRow containers */
+  div[role="row"] {
+    padding: 8px 8px !important;
+    gap: 8px !important;
+    /* Never overflow its parent */
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* Index number column — slightly tighter */
+  div[role="row"] > div[style*="width:22"],
+  div[role="row"] > div[style*="width: 22"] {
+    width: 18px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Song title */
+  div[role="row"] div[style*="fontSize:14"],
+  div[role="row"] div[style*="fontSize: 14"] {
+    font-size: 13px !important;
+  }
+
+  /* Duration label — hide on mobile to reclaim space */
+  div[role="row"] span[style*="minWidth:32"],
+  div[role="row"] span[style*="minWidth: 32"] {
+    display: none !important;
+  }
+
+  /* Context-menu dot button — always visible on touch (no hover) */
+  div[role="row"] button[style*="opacity:hov"],
+  div[role="row"] button[style*="opacity: hov"] {
+    opacity: 0.5 !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   9. HOME VIEW
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* Hero card */
+  div[style*="padding: isMobile"][style*="24px 20px"],
+  div[style*="padding:'24px 20px'"],
+  div[style*="padding: '24px 20px'"] {
+    padding: 20px 16px !important;
+  }
+
+  /* Hero greeting h1 */
+  div[style*="gradStr"] h1,
+  div[style*="borderRadius: 20"] h1[style*="fontSize"] {
+    font-size: 20px !important;
+  }
+
+  /* Recs refresh header — allow wrapping */
+  div[style*="alignItems: 'flex-start'"][style*="justifyContent: 'space-between'"],
+  div[style*="alignItems:'flex-start'"][style*="justifyContent:'space-between'"] {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+}
+
+/* Genre button grid — always 2 cols on mobile */
+@media (max-width: 768px) {
+  div[style*="repeat(4,1fr)"],
+  div[style*="repeat(4, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  div[style*="repeat(4,1fr)"] button,
+  div[style*="repeat(4, 1fr)"] button {
+    padding: 14px 12px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   10. SEARCH VIEW
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* Search input container */
+  div[style*="padding: '0 16px'"],
+  div[style*="padding:'0 16px'"] {
+    padding: 0 10px !important;
+  }
+
+  /* Input font size — prevents iOS zoom on focus (must be ≥16px) */
+  div[style*="padding: '0 16px'"] input,
+  div[style*="padding:'0 16px'"] input {
+    font-size: 16px !important;
+    padding: 12px 0 !important;
+  }
+
+  /* Search button — flex-shrink so it stays visible */
+  div[style*="padding: '0 16px'"] button[style*="flexShrink: 0"],
+  div[style*="padding:'0 16px'"] button[style*="flexShrink: 0"] {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   11. LIBRARY VIEW
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* Library header — allow wrap */
+  div[style*="justifyContent: 'space-between'"] h2[style*="fontSize: 22"],
+  div[style*="justifyContent:'space-between'"] h2[style*="fontSize:22"] {
+    font-size: 18px !important;
+  }
+
+  /* Playlist card — fix overflow */
+  div[style*="padding: '14px 16px'"],
+  div[style*="padding:'14px 16px'"] {
+    overflow: hidden !important;
+    max-width: 100% !important;
+  }
+
+  /* Edit/Delete buttons — always partially visible on touch */
+  div[style*="opacity: hov"],
+  div[style*="opacity:hov"] {
+    opacity: 0.4 !important;
+    transition: opacity 0.15s !important;
+  }
+
+  /* Playlist cover art — slightly smaller */
+  div[style*="width: 54"][style*="height: 54"],
+  div[style*="width:54"][style*="height:54"] {
+    width: 46px !important;
+    height: 46px !important;
+    border-radius: 10px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   12. PLAYLIST DETAIL HEADER — overflows on small phones
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 480px) {
+  /* Header row: back btn + art + title + Play All btn */
+  div[style*="alignItems: 'center'"][style*="gap: 14"][style*="marginBottom: 20"],
+  div[style*="alignItems:'center'"][style*="gap:14"][style*="marginBottom:20"] {
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+  }
+
+  /* "Play All" button moves to its own row */
+  div[style*="alignItems: 'center'"][style*="gap: 14"][style*="marginBottom: 20"] > button,
+  div[style*="alignItems:'center'"][style*="gap:14"][style*="marginBottom:20"] > button {
+    flex: 0 0 100% !important;
+    justify-content: center !important;
+    margin-top: 4px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   13. QUEUE PANEL — ensure it never overflows viewport width
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  div[role="dialog"][aria-label="Play queue"] {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Queue row text */
+  div[role="dialog"][aria-label="Play queue"] > div[style*="overflow-y: auto"] > div,
+  div[role="dialog"][aria-label="Play queue"] > div[style*="overflowY: auto"] > div {
+    overflow: hidden !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   14. MODALS (Playlist + Settings) — bottom sheet on mobile
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* Overlay — anchor to bottom */
+  div[style*="position: 'fixed'"][style*="alignItems: 'center'"][style*="padding: 20"],
+  div[style*="position:'fixed'"][style*="alignItems:'center'"][style*="padding:20"],
+  div[style*="position: fixed"][style*="alignItems: center"][style*="padding: 20px"] {
+    padding: 0 !important;
+    align-items: flex-end !important;
+  }
+
+  /* Modal card — full width, slide up from bottom */
+  div[style*="borderRadius: 24"][style*="maxWidth: 420"],
+  div[style*="borderRadius:24"][style*="maxWidth:420"],
+  div[style*="borderRadius: 20"][style*="maxWidth: 380"],
+  div[style*="borderRadius:20"][style*="maxWidth:380"],
+  div[style*="borderRadius: 20"][style*="maxWidth: 460"],
+  div[style*="borderRadius:20"][style*="maxWidth:460"] {
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 92vh !important;
+    overflow-y: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Auth card (different selector) */
+  div[style*="borderRadius: 24"][style*="width: '100%'"],
+  div[style*="borderRadius:24"][style*="width:'100%'"] {
+    padding: 28px 18px !important;
+  }
+}
+
+@media (max-width: 375px) {
+  div[style*="borderRadius: 20"][style*="padding: 28"],
+  div[style*="borderRadius:20"][style*="padding:28"] {
+    padding: 22px 14px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   15. AUTH SCREEN — blobs cause overflow, card too wide
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* Auth wrapper */
+  div[style*="minHeight: '100vh'"],
+  div[style*="minHeight:'100vh'"] {
+    padding: 16px !important;
+    overflow-x: hidden !important;
+    align-items: flex-end !important; /* put card at bottom like a sheet */
+  }
+
+  /* Auth card */
+  div[style*="borderRadius: 24"][style*="boxShadow"] {
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 95vh !important;
+    overflow-y: auto !important;
+    padding: 28px 18px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Gradient blobs — position them so they don't trigger overflow */
+  div[style*="minHeight: '100vh'"] > div[aria-hidden="true"],
+  div[style*="minHeight:'100vh'"] > div[aria-hidden="true"] {
+    overflow: hidden !important;
+    /* Constrain blobs to viewport */
+    max-width: 100vw !important;
+  }
+
+  /* Auth h1 */
+  div[style*="borderRadius: 24"] h1 {
+    font-size: 22px !important;
+  }
+
+  /* Submit button */
+  div[style*="borderRadius: 24"] button[type="submit"] {
+    font-size: 14px !important;
+    min-height: 50px !important;
+  }
+
+  /* All form inputs — prevent iOS zoom (must be font-size ≥16px) */
+  div[style*="borderRadius: 24"] input {
+    font-size: 16px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   16. CONTEXT MENU — can go off-screen on mobile long-press
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* We can't clamp position from CSS alone (JS sets top/left).
+     But we ensure it never exceeds viewport width. */
+  div[style*="position: 'fixed'"][style*="minWidth: 210"],
+  div[style*="position:'fixed'"][style*="minWidth:210"],
+  div[style*="position: fixed"][style*="min-width: 210px"] {
+    max-width: calc(100vw - 20px) !important;
+    /* If it would overflow right edge, flip it */
+    right: auto !important;
+  }
+
+  /* Touch-friendly item height */
+  div[style*="minWidth: 210"] button,
+  div[style*="minWidth:210"] button {
+    min-height: 44px !important;
+    padding: 10px 14px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   17. TOASTER — overlaps player+nav on mobile
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* Toast container */
+  div[style*="bottom: 90"][style*="right: 20"],
+  div[style*="bottom:90"][style*="right:20"] {
+    bottom: calc(var(--mob-bottom) + 12px) !important;
+    left: 10px !important;
+    right: 10px !important;
+    align-items: stretch !important;
+  }
+
+  /* Individual toasts — full width */
+  div[style*="bottom: 90"] > div[style*="maxWidth: 280"],
+  div[style*="bottom:90"] > div[style*="maxWidth:280"] {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   18. TOUCH TARGETS — all interactive elements ≥ 44×44px
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* Every button and link must be tappable */
+  button,
+  [role="button"],
+  a[href] {
+    min-height: 36px; /* soft minimum — some are inline */
+  }
+
+  /* Icon-only buttons get proper square targets */
+  button[aria-label]:not([type="submit"]):not([type="range"]) {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+  }
+
+  /* Primary action buttons */
+  button[type="submit"],
+  button[style*="background: gradStr"],
+  button[style*="fontWeight: 700"][style*="fontSize: 13"] {
+    min-height: 46px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   19. SECTION HEADERS — overflow on narrow screens
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  /* Section title rows */
+  div[style*="marginBottom: 16"][style*="justifyContent: 'space-between'"],
+  div[style*="marginBottom:16"][style*="justifyContent:'space-between'"] {
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    overflow: hidden !important;
+  }
+
+  div[style*="marginBottom: 16"] h2,
+  div[style*="marginBottom:16"] h2 {
+    font-size: 16px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-width: 0 !important;
+  }
+
+  div[style*="marginBottom: 16"] button,
+  div[style*="marginBottom:16"] button {
+    flex-shrink: 0 !important;
+    font-size: 12px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   20. LANDSCAPE PHONE — reduce padding when height is tight
+   ─────────────────────────────────────────────────────────────*/
+@media (max-height: 500px) and (orientation: landscape) {
+  header {
+    padding: 6px 12px !important;
+  }
+
+  main[aria-label="Main content"] {
+    padding-top: 6px !important;
+  }
+
+  div[role="region"][aria-label="Music player"] > div:last-child {
+    padding: 6px 10px 8px !important;
+  }
+
+  nav[aria-label="Mobile navigation"] {
+    height: 48px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   21. TABLET (768px – 1024px) — tighten desktop layout
+   ─────────────────────────────────────────────────────────────*/
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Sidebar slightly narrower */
+  aside[aria-label="Main navigation"] {
+    width: 200px !important;
+  }
+
+  /* Player bar — fixed left (270px) and right (250px) panels
+     clip controls at 768px. Replace with flex-based widths. */
+  div[role="region"][aria-label="Music player"] div[style*="width: 270"],
+  div[role="region"][aria-label="Music player"] div[style*="width:270"] {
+    width: 200px !important;
+  }
+
+  div[role="region"][aria-label="Music player"] div[style*="width: 250"],
+  div[role="region"][aria-label="Music player"] div[style*="width:250"] {
+    width: 175px !important;
+  }
+
+  div[role="region"][aria-label="Music player"] > div[style*="height: 86"],
+  div[role="region"][aria-label="Music player"] > div[style*="height:86"] {
+    padding: 0 16px !important;
+    gap: 12px !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   22. iOS SAFE AREA (notch / dynamic island / home bar)
+   ─────────────────────────────────────────────────────────────*/
+@supports (padding: env(safe-area-inset-bottom)) {
+  @media (max-width: 768px) {
+    nav[aria-label="Mobile navigation"] {
+      height: calc(var(--mob-nav-h) + env(safe-area-inset-bottom)) !important;
+      padding-bottom: env(safe-area-inset-bottom) !important;
+    }
+
+    main[aria-label="Main content"] {
+      padding-bottom: calc(
+        var(--mob-player-h) +
+        var(--mob-nav-h) +
+        env(safe-area-inset-bottom) +
+        20px
+      ) !important;
+    }
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   23. PREVENT SCROLL CHAINING (iOS rubber-band on drawers/modals)
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  div[role="dialog"],
+  div[role="dialog"] > div[style*="overflow"] {
+    overscroll-behavior: contain !important;
+  }
+
+  main[aria-label="Main content"] {
+    overscroll-behavior-y: contain !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   24. FOCUS RINGS — remove sticky outlines on touch devices
+   ─────────────────────────────────────────────────────────────*/
+@media (hover: none) {
+  button:focus:not(:focus-visible),
+  [role="button"]:focus:not(:focus-visible),
+  a:focus:not(:focus-visible) {
+    outline: none !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   25. REDUCED MOTION
+   ─────────────────────────────────────────────────────────────*/
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .fade-up {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   26. TEXT — prevent iOS auto-zoom on inputs (belt + suspenders)
+   ─────────────────────────────────────────────────────────────*/
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  textarea {
+    font-size: 16px !important; /* iOS zooms when < 16px */
+    -webkit-text-size-adjust: 100% !important;
+  }
+}
