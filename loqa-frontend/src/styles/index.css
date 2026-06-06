@@ -1,15 +1,38 @@
+/* ================================================================
+   Loqa Music — index.css  (updated with responsive improvements)
+   ================================================================ */
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{-webkit-text-size-adjust:100%}
-body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+html{
+  -webkit-text-size-adjust:100%;
+  /* FIX: Prevent horizontal overflow on mobile */
+  overflow-x:hidden;
+  max-width:100vw;
+}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  /* FIX: Prevent body overflow */
+  overflow-x:hidden;
+}
+/* FIX: flex children never blow layout */
+*{min-width:0;}
 a{color:inherit;text-decoration:none}
 button{font-family:inherit;cursor:pointer}
 input,textarea{font-family:inherit}
 img{display:block;max-width:100%}
+
+/* ── CSS Custom Properties ──────────────────────────────── */
 :root{
   --accent:#6C63FF;--accent2:#FF6584;--accent3:#43E97B;
   --radius:12px;--radius-sm:8px;--radius-lg:20px;--radius-pill:999px;
   --trans:0.18s ease;--trans-slow:0.35s ease;
   --shadow:0 4px 24px rgba(0,0,0,.18);--shadow-lg:0 16px 48px rgba(0,0,0,.32);
+  /* FIX: standard nav heights for safe spacing calculations */
+  --mobile-nav-h: 60px;
+  --player-bar-h: 80px;
+  --mobile-player-h: 78px;
 }
 [data-theme=dark]{
   --bg:#0A0A0F;--bg2:#111118;--bg3:#16161E;--bg4:#1C1C26;
@@ -25,16 +48,31 @@ img{display:block;max-width:100%}
   --border:rgba(0,0,0,.08);--border2:rgba(0,0,0,.14);
   --player:rgba(255,255,255,.97);--glass:rgba(255,255,255,.9);--overlay:rgba(0,0,0,.5);
 }
+
+/* ── Scrollbar ──────────────────────────────────────────── */
 *::-webkit-scrollbar{width:4px;height:4px}
 *::-webkit-scrollbar-track{background:transparent}
 *::-webkit-scrollbar-thumb{background:var(--text3);border-radius:4px}
+
+/* ── Focus Styles ───────────────────────────────────────── */
 button:focus-visible,a:focus-visible,[role=button]:focus-visible,[role=slider]:focus-visible,input:focus-visible{
   outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+/* FIX: No sticky focus rings on touch devices */
+@media(hover:none){
+  button:focus:not(:focus-visible),[role=button]:focus:not(:focus-visible){outline:none;}
+}
+
+/* ── Range Input ────────────────────────────────────────── */
 input[type=range]{-webkit-appearance:none;appearance:none;height:3px;background:var(--text3);border-radius:3px;cursor:pointer}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
 input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:#fff;border:none;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+
+/* ── Screen Reader Utilities ────────────────────────────── */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .sr-only-focusable:focus{position:fixed;z-index:9999;top:0;left:0;width:auto;height:auto;padding:10px 20px;margin:0;overflow:visible;clip:auto;white-space:normal;background:var(--accent);color:#fff;font-weight:700;font-size:13px;border-radius:0 0 8px 0}
+
+/* ── Animations ─────────────────────────────────────────── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -45,5 +83,148 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 @keyframes eq3{0%,100%{height:80%}50%{height:40%}}
 .fade-up{animation:fadeUp .3s ease forwards}
 .spin{animation:spin 1s linear infinite}
-/* ─── Responsive overrides — loaded last to win specificity ─── */
-@import './responsive.css';
+
+/* ── Reduce Motion ──────────────────────────────────────── */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;}
+  .fade-up{animation:none!important;opacity:1!important;transform:none!important;}
+}
+
+
+/* ================================================================
+   RESPONSIVE OVERRIDES
+   ================================================================ */
+
+/* ── Touch targets (WCAG 2.5.5) ─────────────────────────── */
+@media(max-width:768px){
+  button,[role=button],a{
+    min-height:44px;
+    min-width:44px;
+  }
+  /* Exception: inline icon buttons — still accessible via padding */
+  button[aria-label]{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+}
+
+/* ── Mobile nav height accounting ───────────────────────── */
+@media(max-width:768px){
+  main[aria-label="Main content"]{
+    /* spacer div in JSX is 110px — boost to clear player + nav */
+    padding-bottom:calc(var(--mobile-player-h) + var(--mobile-nav-h) + 16px) !important;
+  }
+}
+
+/* ── Safe area insets (notch / home indicator) ──────────── */
+@supports(padding:env(safe-area-inset-bottom)){
+  nav[aria-label="Mobile navigation"]{
+    padding-bottom:env(safe-area-inset-bottom) !important;
+    height:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom)) !important;
+  }
+  main[aria-label="Main content"]{
+    padding-bottom:calc(
+      var(--mobile-player-h) + var(--mobile-nav-h) + env(safe-area-inset-bottom) + 16px
+    ) !important;
+  }
+}
+
+/* ── HScroll: full-bleed with internal scroll only ──────── */
+@media(max-width:768px){
+  /* Scoped by inline style attributes set in HScroll component */
+  div[style*="gridAutoFlow"]{
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  div[style*="gridAutoFlow"]::-webkit-scrollbar{display:none;}
+}
+
+/* ── Header: very small screens ─────────────────────────── */
+@media(max-width:375px){
+  header h1{
+    max-width:130px !important;
+    font-size:13px !important;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+}
+
+/* ── Mobile sidebar: max 85vw ──────────────────────────── */
+@media(max-width:768px){
+  aside[role=dialog]{
+    width:min(240px,85vw) !important;
+  }
+}
+
+/* ── Genre grid: 2 cols always on mobile ─────────────────── */
+@media(max-width:425px){
+  /* Genre buttons inside Browse Genres grid */
+  div[style*="repeat(4,1fr)"]{
+    grid-template-columns:repeat(2,1fr) !important;
+    gap:8px !important;
+  }
+}
+
+/* ── Tablet: sidebar narrower ───────────────────────────── */
+@media(min-width:769px) and (max-width:1024px){
+  aside[role=navigation]{
+    width:200px !important;
+  }
+  /* Player bar on tablet: tighten the fixed-width panels */
+  div[role=region][aria-label="Music player"] div[style*="width:270"]{
+    width:200px !important;
+  }
+  div[role=region][aria-label="Music player"] div[style*="width:250"]{
+    width:180px !important;
+  }
+}
+
+/* ── Context menu: clamp to viewport ─────────────────────── */
+@media(max-width:768px){
+  div[style*="position:fixed"][style*="minWidth:210"]{
+    max-width:calc(100vw - 24px);
+  }
+}
+
+/* ── Toaster: above player + nav on mobile ───────────────── */
+@media(max-width:768px){
+  div[style*="bottom:90"][style*="right:20"]{
+    bottom:calc(var(--mobile-player-h) + var(--mobile-nav-h) + 12px) !important;
+    right:12px !important;
+    left:12px !important;
+    align-items:stretch;
+  }
+  div[style*="bottom:90"] > div{
+    max-width:100% !important;
+  }
+}
+
+/* ── Modals: bottom-sheet on mobile ─────────────────────── */
+@media(max-width:768px){
+  /* Overlay */
+  div[style*="position:fixed"][style*="alignItems:center"][style*="padding:20"]{
+    padding:0 !important;
+    align-items:flex-end !important;
+  }
+  /* Sheet */
+  div[style*="borderRadius:20"][style*="maxWidth:380"],
+  div[style*="borderRadius:20"][style*="maxWidth:460"]{
+    border-radius:20px 20px 0 0 !important;
+    max-height:90vh;
+    overflow-y:auto;
+    width:100% !important;
+  }
+}
+
+/* ── Landscape phone ─────────────────────────────────────── */
+@media(max-height:500px) and (orientation:landscape){
+  header{padding:6px 12px !important;}
+  main[aria-label="Main content"]{padding-top:8px !important;}
+}
+
+/* ── High contrast mode ─────────────────────────────────── */
+@media(forced-colors:active){
+  button,input,a{border:1px solid ButtonText !important;}
+}

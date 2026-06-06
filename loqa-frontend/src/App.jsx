@@ -21,7 +21,9 @@ import { useMediaQuery, useKeyboardShortcuts, useMediaSession, useNetworkStatus 
 const PORTAL_ROOT = document.getElementById('loqa-portals') || document.body;
 
 export default function App() {
-  const mob = useMediaQuery('(max-width:768px)');
+  // FIX: extended breakpoints for better granularity
+  const mob  = useMediaQuery('(max-width:768px)');
+  const tiny = useMediaQuery('(max-width:375px)');
 
   /* ── Auth ──────────────────────── */
   const authed  = useAuthStore(s => s.authed);
@@ -123,14 +125,9 @@ export default function App() {
 
   useNetworkStatus(toast);
 
-  /* ── Load personalised recommendations ──────────────────
-     seed_artist: currently-playing song's artist (optional)
-     force: bypass 30-second cooldown
-  ──────────────────────────────────────────────────────── */
   const loadRecs = useCallback(async (opts = {}) => {
     const { force = false, seedArtist = '', seedId = '' } = opts;
     const now = Date.now();
-    // Don't refresh more often than every 30 s unless forced
     if (!force && now - lastRecsLoad < 30_000) return;
 
     setRecsLoading(true);
@@ -152,12 +149,9 @@ export default function App() {
     setRecsLoading(false);
   }, [lastRecsLoad, getHeaders]); // eslint-disable-line
 
-  /* ── Record play + refresh recs with seed artist ───────── */
   useEffect(() => {
     if (!song || !authed) return;
     recordPlay(song);
-    // Refresh recommendations using the current artist as seed
-    // (throttled to once per 30s so it doesn't hammer the server)
     loadRecs({ seedArtist: song.artist || '', seedId: song.id });
   }, [song?.id]); // eslint-disable-line
 
@@ -176,7 +170,7 @@ export default function App() {
     requestAnimationFrame(() => mainRef.current?.focus());
   }, [go, mob, setSidebar]);
 
-  /* ── Skip helpers — lockSkip() BEFORE store update ── */
+  /* ── Skip helpers ── */
   const safeNext = useCallback(() => { ytRef.current?.lockSkip(); doNext(); }, [doNext]);
   const safePrev = useCallback(() => {
     ytRef.current?.lockSkip();
@@ -188,7 +182,7 @@ export default function App() {
     if (r === 'restart') ytRef.current?.seekTo(0);
   }, [doEnded]);
 
-  /* ── Seek (numeric pct or symbolic string) ── */
+  /* ── Seek ── */
   const seek = useCallback((p) => {
     if (typeof p === 'string') {
       const { progress: cur, duration: dur } = usePlayerStore.getState();
@@ -202,7 +196,7 @@ export default function App() {
     ytRef.current?.seekTo(p);
   }, [doSeek]);
 
-  /* ── Player error ─────────────── */
+  /* ── Player error ── */
   const onErr = useCallback((code) => {
     toast(
       code === 101 || code === 150
@@ -215,7 +209,7 @@ export default function App() {
 
   const onDuration = useCallback(d => { if (d > 0) setDuration(d); }, [setDuration]);
 
-  /* ── Like toggle ─────────────── */
+  /* ── Like toggle ── */
   const doLike = useCallback(async (songOrId) => {
     const obj = typeof songOrId === 'string' ? { id: songOrId } : songOrId;
     const isNowLiked = await toggleLike(obj);
@@ -225,7 +219,7 @@ export default function App() {
     );
   }, [toggleLike, toast]);
 
-  /* ── Playlist helpers ─────────── */
+  /* ── Playlist helpers ── */
   const onCreatePl = async (name, desc) => {
     await createPl(name, desc); setPlModal(null); toast('Playlist created!', 'success');
   };
@@ -242,11 +236,11 @@ export default function App() {
     toast(`Added to ${n || 'playlist'}!`, 'success');
   };
 
-  /* ── Volume keyboard ─────────── */
+  /* ── Volume keyboard ── */
   const volUp   = useCallback(() => setVolume(Math.min(100, (muted ? 0 : volume) + 5)), [setVolume, volume, muted]);
   const volDown = useCallback(() => setVolume(Math.max(0,   (muted ? 0 : volume) - 5)), [setVolume, volume, muted]);
 
-  /* ── MediaSession ─────────────── */
+  /* ── MediaSession ── */
   useMediaSession({
     song, playing, duration,
     onPlay:  useCallback(() => setPlaying(true),  [setPlaying]),
@@ -254,7 +248,7 @@ export default function App() {
     onPrev: safePrev, onNext: safeNext, onSeek: seek,
   });
 
-  /* ── Keyboard shortcuts ───────── */
+  /* ── Keyboard shortcuts ── */
   useKeyboardShortcuts({
     song, playing, shuffle, repeat, showQueue,
     onTogglePlay:    useCallback(() => setPlaying(p => !p), [setPlaying]),
@@ -267,7 +261,7 @@ export default function App() {
     onVolUp: volUp, onVolDown: volDown, onSeek: seek, toast,
   });
 
-  /* ── Context menu action ──────── */
+  /* ── Context menu action ── */
   const onCtxAction = useCallback((action, s, data) => {
     setCtxMenu(null);
     switch (action) {
@@ -284,7 +278,7 @@ export default function App() {
     }
   }, [setCtxMenu, setQueue, doLike, toast]); // eslint-disable-line
 
-  /* ── Sidebar roving tabindex ───── */
+  /* ── Sidebar roving tabindex ── */
   const onNavKey = useCallback(e => {
     const items = [...(navRef.current?.querySelectorAll('[data-nav]') || [])];
     const i = items.indexOf(document.activeElement);
@@ -303,14 +297,20 @@ export default function App() {
     { id: 'liked',  label: 'Liked',        icon: I.heart, badge: liked.length },
   ];
 
-  /* ── Auth gate ────────────────── */
+  /* ── Auth gate ── */
   if (!authed) return <AuthScreen C={C} isMobile={mob} />;
 
-  /* ─────────────────────────────── */
+  /* ── Mobile nav height: 60px + safe-area ── */
+  const mobileNavH = 60; // matches CSS var --mobile-nav-h
+
   return (
     <div
-      style={{ display:'flex', height:'100vh', background:C.bg, color:C.text,
-               fontFamily:"'Inter',-apple-system,sans-serif", overflow:'hidden' }}
+      style={{
+        display: 'flex', height: '100vh', background: C.bg, color: C.text,
+        fontFamily: "'Inter',-apple-system,sans-serif",
+        // FIX: prevent horizontal overflow at root level
+        overflow: 'hidden', maxWidth: '100vw',
+      }}
       onClick={() => ctxMenu && setCtxMenu(null)}
     >
       {/* a11y */}
@@ -322,7 +322,7 @@ export default function App() {
       {/* Mobile backdrop */}
       {mob && sidebarOpen && (
         <div aria-hidden="true" onClick={() => setSidebar(false)}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:49 }} />
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 49 }} />
       )}
 
       {/* ── Sidebar ─────────────────────────────────────── */}
@@ -332,34 +332,40 @@ export default function App() {
           aria-modal={mob || undefined}
           aria-label="Main navigation"
           style={{
-            width:240, flexShrink:0, background:C.surface,
-            borderRight:`1px solid ${C.border}`,
-            display:'flex', flexDirection:'column', zIndex:50, overflow:'hidden',
-            ...(mob ? { position:'fixed', left:0, top:0, bottom:0, boxShadow:'8px 0 40px rgba(0,0,0,.5)' } : {}),
+            // FIX: use min() to cap at 85vw on mobile
+            width: mob ? 'min(240px, 85vw)' : 240,
+            flexShrink: 0, background: C.surface,
+            borderRight: `1px solid ${C.border}`,
+            display: 'flex', flexDirection: 'column', zIndex: 50, overflow: 'hidden',
+            ...(mob ? { position: 'fixed', left: 0, top: 0, bottom: 0, boxShadow: '8px 0 40px rgba(0,0,0,.5)' } : {}),
           }}
         >
           {/* Logo */}
-          <div style={{ padding:'20px 18px 14px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-              <div style={{ width:34, height:34, borderRadius:10, background:gradStr(0),
-                            display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div style={{ padding: '20px 18px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: gradStr(0),
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Svg d={I.music} size={16} fill="rgba(255,255,255,.3)" stroke="#fff" />
               </div>
-              <span style={{ fontSize:16, fontWeight:900, background:gradStr(0),
-                             WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+              <span style={{ fontSize: 16, fontWeight: 900, background: gradStr(0),
+                             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                             // FIX: prevent text overflow in logo area
+                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>
                 Loqa Music
               </span>
             </div>
             {mob && (
               <button onClick={() => setSidebar(false)} aria-label="Close menu"
-                style={{ background:'none', border:'none', cursor:'pointer', color:C.text3, padding:4 }}>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text3,
+                         // FIX: proper touch target
+                         padding: '8px', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Svg d={I.close} size={18} stroke="currentColor" />
               </button>
             )}
           </div>
 
           {/* Primary nav */}
-          <nav aria-label="Primary" ref={navRef} onKeyDown={onNavKey} style={{ padding:'0 10px 10px' }}>
+          <nav aria-label="Primary" ref={navRef} onKeyDown={onNavKey} style={{ padding: '0 10px 10px' }}>
             {NAV.map(item => {
               const isLikedItem = item.id === 'liked';
               const active = view === item.id ||
@@ -370,24 +376,26 @@ export default function App() {
                   aria-current={active ? 'page' : undefined}
                   onClick={() =>
                     isLikedItem
-                      ? nav('playlist', { playlist:{ id:'liked', name:'Liked Songs', songs:liked, ci:1 } })
+                      ? nav('playlist', { playlist: { id: 'liked', name: 'Liked Songs', songs: liked, ci: 1 } })
                       : nav(item.id)
                   }
                   style={{
-                    width:'100%', display:'flex', alignItems:'center', gap:12,
-                    padding:'10px 14px', borderRadius:10, border:'none', cursor:'pointer', marginBottom:2,
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                    // FIX: ensure min touch height
+                    padding: '10px 14px', minHeight: 44,
+                    borderRadius: 10, border: 'none', cursor: 'pointer', marginBottom: 2,
                     background: active ? `rgba(${C.accentRgb},.15)` : 'transparent',
                     color: active ? C.accent : C.text2,
-                    fontWeight: active ? 600 : 400, fontSize:13.5, textAlign:'left',
-                    transition:'all .15s', fontFamily:'inherit',
+                    fontWeight: active ? 600 : 400, fontSize: 13.5, textAlign: 'left',
+                    transition: 'all .15s', fontFamily: 'inherit',
                   }}
                 >
                   <Svg d={item.icon} size={16} stroke="currentColor"
                        fill={isLikedItem && active ? C.accent2 : 'none'} />
                   {item.label}
                   {item.badge > 0 && (
-                    <span style={{ marginLeft:'auto', background:C.accent2, color:'#fff',
-                                   fontSize:10, fontWeight:700, borderRadius:10, padding:'1px 7px' }}>
+                    <span style={{ marginLeft: 'auto', background: C.accent2, color: '#fff',
+                                   fontSize: 10, fontWeight: 700, borderRadius: 10, padding: '1px 7px', flexShrink: 0 }}>
                       {item.badge}
                     </span>
                   )}
@@ -396,70 +404,78 @@ export default function App() {
             })}
           </nav>
 
-          <div style={{ height:1, background:C.border, margin:'0 14px 10px' }} />
+          <div style={{ height: 1, background: C.border, margin: '0 14px 10px' }} />
 
           {/* Playlist list */}
-          <div style={{ flex:1, overflowY:'auto', padding:'0 10px' }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-                          padding:'2px 14px 8px', color:C.text3, fontSize:10.5,
-                          textTransform:'uppercase', letterSpacing:1.2, fontWeight:700 }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '2px 14px 8px', color: C.text3, fontSize: 10.5,
+                          textTransform: 'uppercase', letterSpacing: 1.2, fontWeight: 700 }}>
               <span>Playlists</span>
-              <button onClick={() => setPlModal({ mode:'create' })} aria-label="New playlist"
-                style={{ background:'none', border:'none', cursor:'pointer', color:C.text3, padding:2 }}>
+              <button onClick={() => setPlModal({ mode: 'create' })} aria-label="New playlist"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text3,
+                         // FIX: proper touch target
+                         padding: 8, minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Svg d={I.plus} size={13} stroke="currentColor" />
               </button>
             </div>
             {playlists.map(pl => {
               const active = view === 'playlist' && playlist?.id === pl.id;
               return (
-                <button key={pl.id} onClick={() => nav('playlist', { playlist:pl })}
+                <button key={pl.id} onClick={() => nav('playlist', { playlist: pl })}
                   aria-current={active ? 'page' : undefined}
                   style={{
-                    width:'100%', display:'flex', alignItems:'center', gap:9,
-                    padding:'7px 14px', borderRadius:8, border:'none', cursor:'pointer', marginBottom:1,
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 9,
+                    padding: '7px 14px', minHeight: 40,
+                    borderRadius: 8, border: 'none', cursor: 'pointer', marginBottom: 1,
                     background: active ? `rgba(${C.accentRgb},.12)` : 'transparent',
-                    color: active ? C.accent : C.text2, fontSize:13, textAlign:'left',
-                    transition:'all .15s', fontFamily:'inherit',
+                    color: active ? C.accent : C.text2, fontSize: 13, textAlign: 'left',
+                    transition: 'all .15s', fontFamily: 'inherit',
                   }}
                 >
-                  <div style={{ width:26, height:26, borderRadius:7, background:gradStr(pl.ci ?? 0), flexShrink:0 }} />
-                  <span style={{ flex:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                  <div style={{ width: 26, height: 26, borderRadius: 7, background: gradStr(pl.ci ?? 0), flexShrink: 0 }} />
+                  <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {pl.name}
                   </span>
-                  <span style={{ fontSize:11, opacity:.5 }}>{pl.songs.length}</span>
+                  <span style={{ fontSize: 11, opacity: .5, flexShrink: 0 }}>{pl.songs.length}</span>
                 </button>
               );
             })}
             {playlists.length === 0 && (
-              <p style={{ padding:'8px 14px', fontSize:12, color:C.text3, margin:0 }}>No playlists yet</p>
+              <p style={{ padding: '8px 14px', fontSize: 12, color: C.text3, margin: 0 }}>No playlists yet</p>
             )}
           </div>
 
           {/* User footer */}
-          <div style={{ padding:'12px 14px', borderTop:`1px solid ${C.border}`,
-                        display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:9 }}>
+          <div style={{ padding: '12px 14px', borderTop: `1px solid ${C.border}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, flex: 1 }}>
               <div style={{
-                width:30, height:30, borderRadius:'50%', background:gradStr(user?.avatarCi ?? 3),
-                flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize:12, fontWeight:700, color:'rgba(255,255,255,.9)',
+                width: 30, height: 30, borderRadius: '50%', background: gradStr(user?.avatarCi ?? 3),
+                flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.9)',
               }}>
                 {user?.name?.[0]?.toUpperCase() || 'U'}
               </div>
-              <span style={{ fontSize:12, fontWeight:500, color:C.text, whiteSpace:'nowrap',
-                             overflow:'hidden', textOverflow:'ellipsis', maxWidth:90 }}>
+              <span style={{ fontSize: 12, fontWeight: 500, color: C.text, whiteSpace: 'nowrap',
+                             overflow: 'hidden', textOverflow: 'ellipsis',
+                             // FIX: cap width based on available space
+                             maxWidth: mob ? 80 : 90 }}>
                 {user?.name}
               </span>
             </div>
-            <div style={{ display:'flex', gap:2 }}>
+            <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
               {[
-                { icon: I.gear,                        label:'Settings',    fn:() => setShowSettings(true) },
-                { icon: theme==='dark' ? I.sun : I.moon, label:'Theme',     fn:toggleTheme },
-                { icon: I.logout,                      label:'Sign out',    fn:logout },
+                { icon: I.gear,                          label: 'Settings', fn: () => setShowSettings(true) },
+                { icon: theme === 'dark' ? I.sun : I.moon, label: 'Theme', fn: toggleTheme },
+                { icon: I.logout,                        label: 'Sign out', fn: logout },
               ].map(({ icon, label, fn }, idx) => (
                 <button key={idx} onClick={fn} aria-label={label}
-                  style={{ background:'none', border:'none', cursor:'pointer', color:C.text3,
-                           padding:4, borderRadius:6, transition:'color .15s' }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text3,
+                           // FIX: min touch target
+                           padding: 6, minWidth: 36, minHeight: 36,
+                           display: 'flex', alignItems: 'center', justifyContent: 'center',
+                           borderRadius: 6, transition: 'color .15s' }}
                   onMouseEnter={e => e.currentTarget.style.color = C.text}
                   onMouseLeave={e => e.currentTarget.style.color = C.text3}>
                   <Svg d={icon} size={13} stroke="currentColor" />
@@ -471,77 +487,91 @@ export default function App() {
       )}
 
       {/* ── Main column ─────────────────────────────────── */}
-      <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
         {/* Header */}
         <header style={{
-          background:C.glass, backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)',
-          borderBottom:`1px solid ${C.border}`,
-          padding: mob ? '10px 14px' : '12px 22px',
-          display:'flex', alignItems:'center', justifyContent:'space-between',
-          flexShrink:0, position:'sticky', top:0, zIndex:40,
+          background: C.glass, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          borderBottom: `1px solid ${C.border}`,
+          // FIX: tighter padding on mobile
+          padding: mob ? (tiny ? '8px 10px' : '10px 14px') : '12px 22px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexShrink: 0, position: 'sticky', top: 0, zIndex: 40,
+          // FIX: don't overflow horizontally
+          minWidth: 0, overflow: 'hidden',
         }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: mob ? 8 : 10, minWidth: 0, flex: 1 }}>
             <button onClick={() => setSidebar(p => !p)}
               aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
               aria-expanded={sidebarOpen}
-              style={{ background:'none', border:`1px solid ${C.border}`, borderRadius:9,
-                       padding:'6px 8px', cursor:'pointer', color:C.text2 }}>
+              style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 9,
+                       // FIX: min touch target on mobile
+                       padding: mob ? '6px 7px' : '6px 8px', cursor: 'pointer', color: C.text2,
+                       minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                       flexShrink: 0 }}>
               <Svg d={I.menu} size={16} stroke="currentColor" />
             </button>
-            <h1 style={{ fontSize: mob ? 16 : 19, fontWeight:800, color:C.text, margin:0 }}>
-              {view==='home'     ? 'Discover'
-              :view==='search'   ? 'Search'
-              :view==='library'  ? 'Library'
-              :view==='local'    ? 'Local Music'
-              :view==='genre'    ? (genre || 'Genre')
-              :view==='playlist' ? (playlist?.name || 'Playlist')
+            <h1 style={{
+              fontSize: mob ? (tiny ? 13 : 15) : 19,
+              fontWeight: 800, color: C.text, margin: 0,
+              // FIX: prevent title from causing overflow
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              minWidth: 0,
+            }}>
+              {view === 'home'     ? 'Discover'
+              : view === 'search'  ? 'Search'
+              : view === 'library' ? 'Library'
+              : view === 'local'   ? 'Local Music'
+              : view === 'genre'   ? (genre || 'Genre')
+              : view === 'playlist'? (playlist?.name || 'Playlist')
               : 'Loqa Music'}
             </h1>
           </div>
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: mob ? 6 : 8, flexShrink: 0 }}>
             <button onClick={() => setShowEq(e => !e)} aria-label="Equalizer" aria-pressed={showEq}
               style={{
-                padding:'6px 12px', display:'flex', alignItems:'center', gap:5,
+                padding: mob ? '6px 8px' : '6px 12px',
+                display: 'flex', alignItems: 'center', gap: 5,
                 background: showEq ? `rgba(${C.accentRgb},.15)` : C.bg3,
-                border:`1px solid ${showEq ? C.accent : C.border}`,
-                borderRadius:10, color: showEq ? C.accent : C.text2,
-                fontWeight:600, fontSize:12, cursor:'pointer', fontFamily:'inherit',
+                border: `1px solid ${showEq ? C.accent : C.border}`,
+                borderRadius: 10, color: showEq ? C.accent : C.text2,
+                fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                minWidth: 36, minHeight: 36,
               }}>
               🎛️{!mob && ' EQ'}
             </button>
             {song && !mob && (
-              <div style={{ display:'flex', alignItems:'center', gap:7, padding:'5px 12px',
-                            background:C.bg3, borderRadius:20, border:`1px solid ${C.border}`,
-                            fontSize:12, maxWidth:180, overflow:'hidden' }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 12px',
+                            background: C.bg3, borderRadius: 20, border: `1px solid ${C.border}`,
+                            fontSize: 12, maxWidth: 180, overflow: 'hidden' }}
                    aria-live="polite">
                 {playing && <EqBars size={13} color={C.accent} />}
-                <span style={{ color:C.text, fontWeight:500, whiteSpace:'nowrap',
-                               overflow:'hidden', textOverflow:'ellipsis' }}>
+                <span style={{ color: C.text, fontWeight: 500, whiteSpace: 'nowrap',
+                               overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {song.title}
                 </span>
               </div>
             )}
-            <div style={{ width:32, height:32, borderRadius:'50%', background:gradStr(user?.avatarCi ?? 3),
-                          display:'flex', alignItems:'center', justifyContent:'center',
-                          fontSize:13, fontWeight:700, color:'rgba(255,255,255,.9)', flexShrink:0 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: gradStr(user?.avatarCi ?? 3),
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.9)', flexShrink: 0 }}>
               {user?.name?.[0]?.toUpperCase() || 'U'}
             </div>
           </div>
         </header>
 
-        {/* Keyboard hint strip */}
+        {/* Keyboard hint strip — desktop only */}
         {!mob && (
-          <div aria-hidden="true" className="loqa-kbd-hints" style={{ padding:'4px 22px', background:C.bg2,
-            borderBottom:`1px solid ${C.border}`, display:'flex', gap:14,
-            fontSize:10.5, color:C.text3, flexShrink:0, flexWrap:'wrap' }}>
-            {[['Space','Play/Pause'],['←→','Skip'],['Shift+←→','Seek ±5s'],
-              ['↑↓','Volume'],['0-9','Jump %'],['L','Like'],
-              ['S','Shuffle'],['R','Repeat'],['M','Mute'],['Q','Queue']
-            ].map(([k,v]) => (
+          <div aria-hidden="true" style={{ padding: '4px 22px', background: C.bg2,
+            borderBottom: `1px solid ${C.border}`, display: 'flex', gap: 14,
+            fontSize: 10.5, color: C.text3, flexShrink: 0, flexWrap: 'wrap' }}>
+            {[['Space', 'Play/Pause'], ['←→', 'Skip'], ['Shift+←→', 'Seek ±5s'],
+              ['↑↓', 'Volume'], ['0-9', 'Jump %'], ['L', 'Like'],
+              ['S', 'Shuffle'], ['R', 'Repeat'], ['M', 'Mute'], ['Q', 'Queue']
+            ].map(([k, v]) => (
               <span key={k}>
-                <kbd style={{ background:C.bg3, border:`1px solid ${C.border}`,
-                              borderRadius:3, padding:'0 4px', fontFamily:'monospace', fontSize:10 }}>
+                <kbd style={{ background: C.bg3, border: `1px solid ${C.border}`,
+                              borderRadius: 3, padding: '0 4px', fontFamily: 'monospace', fontSize: 10 }}>
                   {k}
                 </kbd>{' '}{v}
               </span>
@@ -551,7 +581,10 @@ export default function App() {
 
         {/* ── Main content ── */}
         <main id="main" ref={mainRef} tabIndex={-1} aria-label="Main content"
-          style={{ flex:1, overflowY:'auto', padding: mob ? '14px 12px 0' : '24px 28px 0' }} className={mob ? 'loqa-main-mobile' : ''}>
+          style={{
+            flex: 1, overflowY: 'auto', overflowX: 'hidden',
+            padding: mob ? (tiny ? '12px 10px 0' : '14px 12px 0') : '24px 28px 0',
+          }}>
 
           {view === 'home' && (
             <HomeView C={C} song={song} playing={playing} liked={liked}
@@ -568,10 +601,10 @@ export default function App() {
           )}
           {view === 'library' && (
             <LibraryView C={C} playlists={playlists} liked={liked}
-              onOpen={pl => nav('playlist', { playlist:pl })}
+              onOpen={pl => nav('playlist', { playlist: pl })}
               onDelete={onDeletePl}
-              onEdit={pl => setPlModal({ mode:'edit', pl })}
-              onCreate={() => setPlModal({ mode:'create' })} />
+              onEdit={pl => setPlModal({ mode: 'edit', pl })}
+              onCreate={() => setPlModal({ mode: 'create' })} />
           )}
           {view === 'local' && (
             <LocalPlayer C={C} isMobile={mob} onSwitchToYT={() => nav('search')} />
@@ -579,7 +612,7 @@ export default function App() {
           {view === 'playlist' && playlist && (
             <PlaylistDetailView C={C}
               playlist={playlist.id === 'liked'
-                ? { ...playlist, songs:liked }
+                ? { ...playlist, songs: liked }
                 : playlist}
               song={song} playing={playing} liked={liked}
               onPlay={(s, opts) => doPlay(s, opts)} onPlayAll={playAll}
@@ -593,7 +626,12 @@ export default function App() {
               onBack={() => nav('home')} />
           )}
 
-          <div style={{ height: mob ? 148 : 24 }} aria-hidden="true" />
+          {/*
+            FIX: Bottom spacer accounts for:
+            - Mobile: player bar (~78px) + bottom nav (60px) + extra buffer = 150px
+            - Desktop: just some breathing room = 24px
+          */}
+          <div style={{ height: mob ? 150 : 24 }} aria-hidden="true" />
         </main>
 
         {/* Player bar */}
@@ -617,36 +655,53 @@ export default function App() {
 
       {/* Mobile bottom nav */}
       {mob && (
-        <nav aria-label="Mobile navigation" className="loqa-mobile-nav"
-          style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:50,
-                   background:C.player, borderTop:`1px solid ${C.border}`,
-                   display:'flex', justifyContent:'space-around', alignItems:'center',
-                   height:56, paddingBottom:'env(safe-area-inset-bottom, 0px)' }}>
+        <nav aria-label="Mobile navigation"
+          style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+            background: C.player, borderTop: `1px solid ${C.border}`,
+            display: 'flex', justifyContent: 'space-around', alignItems: 'stretch',
+            // FIX: account for iOS safe area; CSS also handles this via @supports
+            height: 60,
+          }}>
           {NAV.filter(n => n.id !== 'liked').map(item => {
             const active = view === item.id;
             return (
               <button key={item.id} onClick={() => nav(item.id)}
                 aria-label={item.label} aria-current={active ? 'page' : undefined}
-                style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2,
-                         background:'none', border:'none', cursor:'pointer',
-                         color: active ? C.accent : C.text3, padding:'6px 0', transition:'color .15s',
-                         fontFamily:'inherit', minHeight:44, minWidth:44 }}>
+                style={{
+                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  justifyContent: 'center', gap: 3,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: active ? C.accent : C.text3,
+                  padding: '4px 0', transition: 'color .15s',
+                  fontFamily: 'inherit',
+                  // FIX: min touch target
+                  minHeight: 44,
+                }}>
                 <Svg d={item.icon} size={20} stroke="currentColor" />
-                <span className="loqa-mobile-nav-label" style={{ fontSize:10, fontWeight: active ? 700 : 500 }}>{item.label}</span>
+                {/* FIX: hide label text on very tiny screens */}
+                <span style={{ fontSize: tiny ? 0 : 10, fontWeight: active ? 700 : 500,
+                               // 0 font-size hides text but keeps element for a11y
+                               lineHeight: tiny ? 0 : 1.2 }}>
+                  {item.label}
+                </span>
               </button>
             );
           })}
           <button onClick={() => setSidebar(p => !p)} aria-label="More"
-            style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2,
-                     background:'none', border:'none', cursor:'pointer',
-                     color:C.text3, padding:'6px 0', fontFamily:'inherit', minHeight:44, minWidth:44 }}>
+            style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+              justifyContent: 'center', gap: 3,
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: C.text3, padding: '4px 0', fontFamily: 'inherit', minHeight: 44,
+            }}>
             <Svg d={I.menu} size={20} stroke="currentColor" />
-            <span className="loqa-mobile-nav-label" style={{ fontSize:10, fontWeight:500 }}>More</span>
+            <span style={{ fontSize: tiny ? 0 : 10, fontWeight: 500, lineHeight: tiny ? 0 : 1.2 }}>More</span>
           </button>
         </nav>
       )}
 
-      {/* ── Portals — rendered into #loqa-portals (NOT document.body) ── */}
+      {/* ── Portals ── */}
 
       {showQueue && createPortal(
         <QueuePanel C={C} queue={queue} related={related}
@@ -654,7 +709,7 @@ export default function App() {
           onPlay={(s) => {
             ytRef.current?.lockSkip();
             setQueue(q => q.filter(x => x.id !== s.id));
-            doPlay(s, { toggle:false, fromQ:true });
+            doPlay(s, { toggle: false, fromQ: true });
           }}
           onRemove={i => setQueue(q => q.filter((_, j) => j !== i))}
           onClose={() => setShowQueue(false)}
@@ -702,7 +757,7 @@ export default function App() {
         onEnded={safeEnd} onProgress={setProgress}
         onError={onErr} onDuration={onDuration} />
 
-      <Toaster toasts={toasts} />
+      <Toaster toasts={toasts} C={C} isMobile={mob} />
     </div>
   );
 }

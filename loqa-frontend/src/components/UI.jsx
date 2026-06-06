@@ -26,15 +26,23 @@ export function Thumb({song,size=48,radius=10,playing=false}){
 }
 
 /* ── SongRow ───────────────────────────────────────────── */
-export function SongRow({song,idx,current,playing,liked,onPlay,onLike,onCtx,C,showIdx=true,showDur=true}){
+export function SongRow({song,idx,current,playing,liked,onPlay,onLike,onCtx,C,showIdx=true,showDur=true,isMobile=false}){
   const[hov,setHov]=useState(false);
   const active=current?.id===song.id;
   return(
     <div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
       onContextMenu={e=>onCtx?.(e,song)}
-      className="loqa-song-row" style={{display:'flex',alignItems:'center',gap:12,padding:'8px 12px',borderRadius:10,
+      style={{
+        display:'flex',alignItems:'center',
+        // FIX: tighter gap + padding on mobile
+        gap: isMobile ? 8 : 12,
+        padding: isMobile ? '7px 8px' : '8px 12px',
+        borderRadius:10,
         background:active?`rgba(${C.accentRgb},.1)`:hov?C.bg3:'transparent',
-        transition:'background .15s',cursor:'pointer',minHeight:56}}
+        transition:'background .15s',cursor:'pointer',
+        // FIX: prevent row from causing overflow
+        minWidth:0,overflow:'hidden',
+      }}
       onClick={()=>onPlay(song)} role="row" tabIndex={0}
       aria-label={`${song.title} by ${song.artist}`}
       onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onPlay(song);}}}>
@@ -43,23 +51,36 @@ export function SongRow({song,idx,current,playing,liked,onPlay,onLike,onCtx,C,sh
          hov?<Svg d={I.play} size={14} fill={C.text2} stroke={C.text2}/>:
          <span>{idx+1}</span>}
       </div>}
-      <Thumb song={song} size={42} radius={8} playing={active&&playing}/>
+      {/* FIX: smaller thumbnail on mobile */}
+      <Thumb song={song} size={isMobile ? 38 : 42} radius={8} playing={active&&playing}/>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:14,fontWeight:active?600:400,color:active?C.accent:C.text,
+        <div style={{fontSize: isMobile ? 13 : 14,fontWeight:active?600:400,color:active?C.accent:C.text,
           whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{song.title}</div>
-        <div style={{fontSize:12,color:C.text2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginTop:1}}>
-          {song.artist}{song.views?` · ${fmtViews(song.views)}`:''}
+        <div style={{fontSize:11,color:C.text2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginTop:1}}>
+          {/* FIX: hide view count on mobile to save space */}
+          {song.artist}{!isMobile&&song.views?` · ${fmtViews(song.views)}`:''}
         </div>
       </div>
-      <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+      <div style={{display:'flex',alignItems:'center',gap: isMobile ? 2 : 6,flexShrink:0}}>
         <button onClick={e=>{e.stopPropagation();onLike?.(song.id);}}
           aria-label={liked?'Unlike':'Like'} aria-pressed={liked}
-          style={{background:'none',border:'none',cursor:'pointer',padding:4,opacity:liked||hov?1:0,transition:'opacity .2s'}}>
+          style={{
+            background:'none',border:'none',cursor:'pointer',
+            // FIX: proper touch target
+            padding: isMobile ? 8 : 4,
+            opacity:liked||hov?1:0,transition:'opacity .2s',
+          }}>
           <Svg d={I.heart} size={14} fill={liked?C.accent2:'none'} stroke={liked?C.accent2:C.text3}/>
         </button>
-        {showDur&&<span style={{fontSize:12,color:C.text3,minWidth:32,textAlign:'right'}}>{fmtTime(song.dur)}</span>}
-        {onCtx&&<button onClick={e=>{e.stopPropagation();onCtx(e,song);}}
+        {/* FIX: hide duration on tiny mobile to prevent overflow */}
+        {showDur&&!isMobile&&<span style={{fontSize:12,color:C.text3,minWidth:32,textAlign:'right'}}>{fmtTime(song.dur)}</span>}
+        {onCtx&&!isMobile&&<button onClick={e=>{e.stopPropagation();onCtx(e,song);}}
           style={{background:'none',border:'none',cursor:'pointer',padding:4,opacity:hov?1:0,transition:'opacity .2s'}}>
+          <Svg d={I.dot3} size={14} stroke={C.text3}/>
+        </button>}
+        {/* FIX: on mobile show context menu button always (no hover state) */}
+        {onCtx&&isMobile&&<button onClick={e=>{e.stopPropagation();onCtx(e,song);}}
+          style={{background:'none',border:'none',cursor:'pointer',padding:8,opacity:.6}}>
           <Svg d={I.dot3} size={14} stroke={C.text3}/>
         </button>}
       </div>
@@ -76,7 +97,10 @@ export function SongCard({song,current,playing,liked,onPlay,onLike,onCtx,C}){
       onContextMenu={e=>onCtx?.(e,song)}
       style={{background:C.surface,borderRadius:14,overflow:'hidden',cursor:'pointer',
         transition:'transform .2s,box-shadow .2s',transform:hov?'translateY(-3px)':'none',
-        boxShadow:hov?`0 12px 40px rgba(${C.accentRgb},.18)`:'none',border:`1px solid ${C.border}`}}
+        boxShadow:hov?`0 12px 40px rgba(${C.accentRgb},.18)`:'none',border:`1px solid ${C.border}`,
+        // FIX: prevent card from overflowing its grid cell
+        minWidth:0, width:'100%',
+      }}
       onClick={()=>onPlay(song)} tabIndex={0}
       onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();onPlay(song);}}}>
       <div style={{position:'relative',paddingTop:'100%'}}>
@@ -106,10 +130,20 @@ export function SongCard({song,current,playing,liked,onPlay,onLike,onCtx,C}){
 export function Section({title,action,onAction,children,C}){
   return(
     <div style={{marginBottom:32}}>
-      <div className="loqa-section-header" style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,gap:8}}>
-        <h2 style={{fontSize:18,fontWeight:800,color:C.text,margin:0}}>{title}</h2>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,gap:8}}>
+        <h2 style={{
+          fontSize:18,fontWeight:800,color:C.text,margin:0,
+          // FIX: prevent section title overflow
+          whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',minWidth:0,
+        }}>{title}</h2>
         {action&&<button onClick={onAction}
-          style={{background:'none',border:'none',cursor:'pointer',color:C.accent,fontSize:13,fontWeight:600,padding:'4px 8px',borderRadius:8}}>
+          style={{
+            background:'none',border:'none',cursor:'pointer',color:C.accent,
+            fontSize:13,fontWeight:600,padding:'4px 8px',borderRadius:8,
+            flexShrink:0,
+            // FIX: touch target
+            minHeight:36,
+          }}>
           {action}
         </button>}
       </div>
@@ -121,9 +155,28 @@ export function Section({title,action,onAction,children,C}){
 /* ── HScroll grid ──────────────────────────────────────── */
 export function HScroll({children}){
   return(
-    <div className="loqa-hscroll" style={{display:'grid',gridAutoFlow:'column',gridAutoColumns:'160px',gap:14,
-      overflowX:'auto',paddingBottom:8,scrollSnapType:'x mandatory'}}>
-      {React.Children.map(children,c=>c?<div className="loqa-hscroll-item" style={{scrollSnapAlign:'start'}}>{c}</div>:null)}
+    <div style={{
+      display:'grid',
+      gridAutoFlow:'column',
+      gridAutoColumns:'160px',
+      gap:14,
+      // FIX: clip internally, never push page width
+      overflowX:'auto',
+      overflowY:'hidden',
+      paddingBottom:8,
+      scrollSnapType:'x mandatory',
+      // FIX: smooth momentum scrolling on iOS
+      WebkitOverflowScrolling:'touch',
+      // FIX: hide scrollbar decoratively (still scrollable)
+      scrollbarWidth:'thin',
+      scrollbarColor:'transparent transparent',
+      // FIX: ensure the container doesn't blow past its parent
+      maxWidth:'100%',
+      // FIX: negative margin trick to extend to screen edge on mobile
+      // (parent padding cancels it out)
+      boxSizing:'border-box',
+    }}>
+      {React.Children.map(children,c=>c?<div style={{scrollSnapAlign:'start',minWidth:0}}>{c}</div>:null)}
     </div>
   );
 }
@@ -132,17 +185,32 @@ export function HScroll({children}){
 function Toast({msg,type}){
   const bg={success:'#22c55e',error:'#ef4444',info:'var(--accent)',warning:'#f59e0b'}[type]||'var(--accent)';
   return(
-    <div className="fade-up" style={{background:bg,color:'#fff',padding:'10px 16px',borderRadius:10,
-      fontSize:13,fontWeight:500,boxShadow:'0 4px 20px rgba(0,0,0,.3)',maxWidth:280,
-      display:'flex',alignItems:'center',gap:8}}>
+    <div className="fade-up" style={{
+      background:bg,color:'#fff',padding:'10px 16px',borderRadius:10,
+      fontSize:13,fontWeight:500,boxShadow:'0 4px 20px rgba(0,0,0,.3)',
+      // FIX: allow toast to use full width on mobile
+      maxWidth:280,width:'100%',boxSizing:'border-box',
+      display:'flex',alignItems:'center',gap:8,
+    }}>
       {msg}
     </div>
   );
 }
-export function Toaster({toasts}){
+
+export function Toaster({toasts, isMobile=false}){
   if(!toasts?.length)return null;
   return(
-    <div className="loqa-toaster" style={{position:'fixed',bottom:90,right:20,zIndex:9999,display:'flex',flexDirection:'column',gap:8,alignItems:'flex-end'}}>
+    <div style={{
+      position:'fixed',
+      // FIX: position above player bar + mobile nav on mobile
+      bottom: isMobile ? 'calc(78px + 60px + 12px)' : 90,
+      right:20,
+      // FIX: stretch to near-edges on mobile
+      ...(isMobile ? { right:12, left:12 } : {}),
+      zIndex:9999,
+      display:'flex',flexDirection:'column',gap:8,
+      alignItems: isMobile ? 'stretch' : 'flex-end',
+    }}>
       {toasts.map(t=><Toast key={t.id} msg={t.msg} type={t.type}/>)}
     </div>
   );
@@ -156,27 +224,40 @@ export function CtxMenu({menu,playlists,onAction,onClose,C}){
     const k=(e)=>{if(e.key==='Escape')onClose();};
     setTimeout(()=>{document.addEventListener('mousedown',h);document.addEventListener('keydown',k);},0);
     return()=>{document.removeEventListener('mousedown',h);document.removeEventListener('keydown',k);};
-  },[]);
-  const{song}=menu;
-  // Clamp to viewport so menu never overflows on small screens
-  const vw=window.innerWidth; const vh=window.innerHeight;
-  const menuW=210; const menuH=280; // approx
-  const x=Math.min(menu.x, vw-menuW-8);
-  const y=Math.min(menu.y, vh-menuH-8);
+  },[]);// eslint-disable-line
+
+  const{song,x,y}=menu;
+
+  // FIX: clamp position so menu never goes off screen
+  const menuW = 210;
+  const menuH = 280; // approximate
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const clampedX = Math.min(x, vw - menuW - 8);
+  const clampedY = Math.min(y, vh - menuH - 8);
+
   const item=(label,icon,action,data,danger)=>(
     <button key={action} onClick={()=>onAction(action,song,data)}
-      style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:'9px 14px',
+      style={{display:'flex',alignItems:'center',gap:10,width:'100%',
+        // FIX: min touch target
+        padding:'10px 14px',minHeight:44,
         background:'none',border:'none',cursor:'pointer',color:danger?'#ef4444':C.text,
-        fontSize:13,textAlign:'left',borderRadius:8,transition:'background .1s'}}
+        fontSize:13,textAlign:'left',borderRadius:8,transition:'background .1s',fontFamily:'inherit'}}
       onMouseEnter={e=>e.currentTarget.style.background=C.bg3}
       onMouseLeave={e=>e.currentTarget.style.background='none'}>
       <Svg d={I[icon]} size={14} stroke="currentColor"/>{label}
     </button>
   );
   return(
-    <div ref={ref} className="loqa-ctx-menu" style={{position:'fixed',top:y,left:x,zIndex:9000,background:C.surface,
-      border:`1px solid ${C.border2}`,borderRadius:14,padding:6,minWidth:210,
-      boxShadow:'0 16px 48px rgba(0,0,0,.4)',animation:'fadeIn .15s ease'}}>
+    <div ref={ref} style={{
+      position:'fixed',
+      top: clampedY, left: clampedX,
+      zIndex:9000,background:C.surface,
+      border:`1px solid ${C.border2}`,borderRadius:14,padding:6,
+      // FIX: cap width to viewport
+      minWidth:210, maxWidth: `calc(100vw - 16px)`,
+      boxShadow:'0 16px 48px rgba(0,0,0,.4)',animation:'fadeIn .15s ease',
+    }}>
       <div style={{padding:'8px 14px 6px',borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:13,fontWeight:600,color:C.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{song.title}</div>
         <div style={{fontSize:11,color:C.text2}}>{song.artist}</div>
@@ -189,8 +270,10 @@ export function CtxMenu({menu,playlists,onAction,onClose,C}){
           <div style={{fontSize:10,color:C.text3,padding:'4px 14px',fontWeight:700,textTransform:'uppercase',letterSpacing:1}}>Add to Playlist</div>
           {playlists.slice(0,5).map(p=>(
             <button key={p.id} onClick={()=>onAction('addToPlaylist',song,p.id)}
-              style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:'7px 14px',
-                background:'none',border:'none',cursor:'pointer',color:C.text,fontSize:12,textAlign:'left',borderRadius:8}}
+              style={{display:'flex',alignItems:'center',gap:10,width:'100%',
+                padding:'8px 14px',minHeight:40,
+                background:'none',border:'none',cursor:'pointer',color:C.text,fontSize:12,textAlign:'left',
+                borderRadius:8,fontFamily:'inherit'}}
               onMouseEnter={e=>e.currentTarget.style.background=C.bg3}
               onMouseLeave={e=>e.currentTarget.style.background='none'}>
               <div style={{width:18,height:18,borderRadius:4,background:gradStr(p.ci),flexShrink:0}}/>
@@ -206,7 +289,6 @@ export function CtxMenu({menu,playlists,onAction,onClose,C}){
 
 /* ── Player Bar ────────────────────────────────────────── */
 
-// Inject player styles once
 let _stylesInjected = false;
 function injectPlayerStyles() {
   if (_stylesInjected || document.getElementById('loqa-pb-styles')) { _stylesInjected=true; return; }
@@ -243,7 +325,6 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
 
   useEffect(() => { injectPlayerStyles(); }, []);
 
-  // Close playlist popover on outside click
   useEffect(() => {
     if (!plPop) return;
     const h = () => setPlPop(false);
@@ -256,7 +337,6 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
   const vol     = muted ? 0 : volume;
   const vi      = muted || vol === 0 ? I.volX : vol < 50 ? I.volLow : I.volHigh;
 
-  // Pull the song's accent colors from the gradient palette
   const songColor  = song?.ci != null ? grad(song.ci) : ['#6C63FF','#B06AFF'];
   const [c1, c2]   = songColor;
   const glowColor  = c1 + '55';
@@ -278,6 +358,8 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
       backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
       borderTop: `1px solid ${C.border}`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
+      // FIX: don't overflow horizontally
+      overflow: 'hidden',
     }}>
       <span style={{color:C.text3, fontSize:13, letterSpacing:.3}}>
         {isMobile ? 'Tap a song to play' : '🎵  Search and play music  ·  Space to play/pause'}
@@ -287,12 +369,15 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
 
   /* ── MOBILE ── */
   if (isMobile) return (
-    <div role="region" aria-label="Music player" className="loqa-player-mobile" onTouchStart={swStart} onTouchEnd={swEnd}
+    <div role="region" aria-label="Music player" onTouchStart={swStart} onTouchEnd={swEnd}
       style={{
         background: C.player,
         backdropFilter:'blur(32px)', WebkitBackdropFilter:'blur(32px)',
         flexShrink: 0,
         boxShadow: `0 -8px 32px rgba(0,0,0,.35)`,
+        // FIX: prevent overflow
+        overflow: 'hidden',
+        maxWidth: '100vw',
       }}>
       {/* Accent top line */}
       <div style={{height:2, background:`linear-gradient(90deg,transparent,${c1} 30%,${c2} 70%,transparent)`, opacity:.7}}/>
@@ -300,10 +385,16 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
       <div style={{height:2, background:C.bg4}}>
         <div style={{height:'100%', background:`linear-gradient(90deg,${c1},${c2})`, width:`${progress}%`, transition:'width .5s linear'}}/>
       </div>
-      <div className="loqa-player-mobile-inner" style={{display:'flex', alignItems:'center', gap:10, padding:'10px 14px 13px'}}>
+      <div style={{
+        display:'flex', alignItems:'center',
+        // FIX: responsive padding — tighter on very small screens
+        gap:8, padding:'10px 12px 12px',
+        // FIX: never overflow
+        overflow:'hidden',
+      }}>
         {/* Thumbnail with glow ring */}
         <div style={{position:'relative', flexShrink:0}}>
-          <Thumb song={song} size={46} radius={11} playing={playing}/>
+          <Thumb song={song} size={44} radius={11} playing={playing}/>
           {playing && <div style={{
             position:'absolute', inset:-3, borderRadius:14,
             border:`1.5px solid ${c1}`, opacity:.7,
@@ -313,22 +404,29 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
         {/* Info */}
         <div style={{flex:1, minWidth:0}}>
           <div style={{fontSize:13,fontWeight:700,color:C.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{song.title}</div>
-          <div style={{fontSize:11,color:C.text3,marginTop:2}}>{song.artist}</div>
+          <div style={{fontSize:11,color:C.text3,marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{song.artist}</div>
         </div>
         {/* Like */}
         <button className="loqa-like" onClick={()=>onLike(song.id)} aria-label={liked?'Unlike':'Like'}
-          style={{background:'none',border:'none',cursor:'pointer',padding:7,color:liked?C.accent2:C.text3}}>
+          style={{background:'none',border:'none',cursor:'pointer',
+            // FIX: min touch target
+            padding:8,minWidth:44,minHeight:44,
+            display:'flex',alignItems:'center',justifyContent:'center',
+            color:liked?C.accent2:C.text3,flexShrink:0}}>
           <Svg d={I.heart} size={18} fill={liked?C.accent2:'none'} stroke="currentColor"/>
         </button>
         {/* Prev */}
         <button className="loqa-ctrl" onClick={onPrev} aria-label="Previous"
-          style={{background:'none',border:'none',cursor:'pointer',padding:6,color:C.text2,opacity:.8}}>
+          style={{background:'none',border:'none',cursor:'pointer',
+            padding:8,minWidth:40,minHeight:44,
+            display:'flex',alignItems:'center',justifyContent:'center',
+            color:C.text2,opacity:.8,flexShrink:0}}>
           <Svg d={I.prev} size={22} fill="currentColor" stroke="currentColor"/>
         </button>
         {/* Play */}
         <button className="loqa-play" onClick={onTogglePlay} aria-label={playing?'Pause':'Play'}
           style={{
-            width:46,height:46,borderRadius:'50%',border:'none',cursor:'pointer',
+            width:44,height:44,borderRadius:'50%',border:'none',cursor:'pointer',
             background:`linear-gradient(135deg,${c1},${c2})`,
             display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,
             boxShadow:`0 4px 18px ${glowColor}`,
@@ -338,7 +436,10 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
         </button>
         {/* Next */}
         <button className="loqa-ctrl" onClick={onNext} aria-label="Next"
-          style={{background:'none',border:'none',cursor:'pointer',padding:6,color:C.text2,opacity:.8}}>
+          style={{background:'none',border:'none',cursor:'pointer',
+            padding:8,minWidth:40,minHeight:44,
+            display:'flex',alignItems:'center',justifyContent:'center',
+            color:C.text2,opacity:.8,flexShrink:0}}>
           <Svg d={I.next} size={22} fill="currentColor" stroke="currentColor"/>
         </button>
       </div>
@@ -354,23 +455,32 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
       boxShadow: `0 -1px 0 ${C.border}, 0 -32px 60px rgba(0,0,0,.3)`,
       flexShrink: 0,
       position: 'relative',
+      // FIX: overflow guard
+      overflow: 'hidden',
     }}>
-      {/* Dynamic color accent line at very top */}
+      {/* Dynamic color accent line */}
       <div style={{
         height: 2,
         background: `linear-gradient(90deg, transparent 4%, ${c1} 32%, ${c2} 68%, transparent 96%)`,
         opacity: .5, pointerEvents:'none',
       }}/>
 
-      <div style={{height:86, display:'flex', alignItems:'center', padding:'0 28px', gap:20}}>
+      <div style={{
+        height:86, display:'flex', alignItems:'center',
+        // FIX: responsive padding for tablet
+        padding:'0 20px', gap:16,
+      }}>
 
         {/* ── Left: Song info ── */}
-        <div style={{width:270, display:'flex', alignItems:'center', gap:14, flexShrink:0}}>
+        <div style={{
+          // FIX: use flex with min-width instead of fixed width for tablet adaptability
+          flex: '0 0 auto', minWidth:180, maxWidth:270,
+          display:'flex', alignItems:'center', gap:14,
+        }}>
 
           {/* Thumbnail + glow */}
           <div style={{position:'relative', flexShrink:0}}>
             <Thumb song={song} size={56} radius={13} playing={playing}/>
-            {/* Subtle ambient glow behind art */}
             <div style={{
               position:'absolute', inset:-6, borderRadius:18,
               background:`linear-gradient(135deg,${c1},${c2})`,
@@ -446,7 +556,6 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
                       <span style={{flex:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{pl.name}</span>
                     </button>
                   ))}
-                  {/* Bottom padding */}
                   <div style={{height:6}}/>
                 </div>
               )}
@@ -458,7 +567,7 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
         <div style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:11, minWidth:0}}>
 
           {/* Transport controls */}
-          <div style={{display:'flex', alignItems:'center', gap:24}}>
+          <div style={{display:'flex', alignItems:'center', gap:20}}>
 
             {/* Shuffle */}
             <div style={{position:'relative'}}>
@@ -479,7 +588,7 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
               <Svg d={I.prev} size={22} fill="currentColor" stroke="currentColor"/>
             </button>
 
-            {/* Play/Pause — the hero button */}
+            {/* Play/Pause */}
             <button className="loqa-play" onClick={onTogglePlay} aria-label={playing?'Pause':'Play'}
               style={{
                 width:52,height:52,borderRadius:'50%',border:'none',cursor:'pointer',
@@ -521,6 +630,7 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
             <span style={{
               fontSize:10.5, color:C.text3, minWidth:36, textAlign:'right',
               fontVariantNumeric:'tabular-nums', letterSpacing:.2,
+              flexShrink:0,
             }}>{fmtTime(elapsed)}</span>
 
             {/* Seek area */}
@@ -569,19 +679,24 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
             <span style={{
               fontSize:10.5, color:C.text3, minWidth:36,
               fontVariantNumeric:'tabular-nums', letterSpacing:.2,
+              flexShrink:0,
             }}>{fmtTime(duration||0)}</span>
           </div>
         </div>
 
         {/* ── Right: Secondary controls + Volume ── */}
-        <div style={{width:250, display:'flex', alignItems:'center', gap:5, justifyContent:'flex-end', flexShrink:0}}>
+        <div style={{
+          // FIX: flex instead of fixed width for tablet
+          flex: '0 0 auto', minWidth:150, maxWidth:250,
+          display:'flex', alignItems:'center', gap:4, justifyContent:'flex-end',
+        }}>
 
           {/* Lyrics & Queue pill buttons */}
           <PillBtn label="Lyrics" icon={I.lyrics} active={showLyrics} onClick={onToggleLyrics} C={C}/>
           <PillBtn label="Queue"  icon={I.queue}  active={showQueue}  onClick={onToggleQueue}  C={C}/>
 
           {/* Thin separator */}
-          <div style={{width:1, height:18, background:C.border, margin:'0 5px', flexShrink:0}}/>
+          <div style={{width:1, height:18, background:C.border, margin:'0 4px', flexShrink:0}}/>
 
           {/* Mute */}
           <button className="loqa-ctrl" onClick={onMute} aria-label={muted?'Unmute':'Mute'}
@@ -592,7 +707,7 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
 
           {/* Volume slider */}
           <div onMouseEnter={()=>setVolHov(true)} onMouseLeave={()=>setVolHov(false)}
-            style={{width:82, flexShrink:0}}>
+            style={{width:72, flexShrink:0}}>
             <input type="range" className="loqa-vol" min={0} max={100} value={vol}
               aria-label="Volume"
               onChange={e=>onVolume(Number(e.target.value))}
@@ -616,7 +731,7 @@ function PillBtn({label, icon, active, onClick, C}) {
     <button onClick={onClick} aria-label={label} aria-pressed={active}
       style={{
         display:'flex', alignItems:'center', gap:5,
-        padding:'5px 11px',
+        padding:'5px 9px',
         background: active ? `rgba(${C.accentRgb},.14)` : 'transparent',
         border: `1px solid ${active ? `rgba(${C.accentRgb},.28)` : C.border}`,
         borderRadius:8, cursor:'pointer',
@@ -632,7 +747,7 @@ function PillBtn({label, icon, active, onClick, C}) {
   );
 }
 
-// Local drag seek (same as hook but inline for PlayerBar)
+// Local drag seek
 function useDragSeekLocal(onSeek){
   const barRef=useRef(null);
   const[drag,setDrag]=useState(null);
@@ -653,4 +768,3 @@ function useDragSeekLocal(onSeek){
   };
   return{barRef,down,drag};
 }
-
