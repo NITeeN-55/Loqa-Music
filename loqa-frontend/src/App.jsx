@@ -10,29 +10,30 @@ import Equalizer from './components/Equalizer.jsx';
 import LocalPlayer from './components/LocalPlayer.jsx';
 import { HomeView, SearchView, GenreView, LibraryView, PlaylistDetailView } from './components/Views.jsx';
 import { QueuePanel, AuthScreen, PlaylistModal, SettingsModal } from './components/Panels.jsx';
+import { NowPlayingView } from './components/NowPlayingView.jsx';
 import usePlayerStore from './stores/playerStore.js';
 import useAuthStore from './stores/authStore.js';
 import useLibraryStore from './stores/libraryStore.js';
 import useUIStore from './stores/uiStore.js';
 import useEqStore from './stores/eqStore.js';
 import { useMediaQuery, useKeyboardShortcuts, useMediaSession, useNetworkStatus } from './hooks/index.js';
+import { useLyrics } from './hooks/useLyrics.js';
+import { useSleepTimer } from './hooks/useSleepTimer.js';
 
-// Stable portal container — never changes, never inside #root
 const PORTAL_ROOT = document.getElementById('loqa-portals') || document.body;
 
 export default function App() {
-  // FIX: extended breakpoints for better granularity
   const mob  = useMediaQuery('(max-width:768px)');
   const tiny = useMediaQuery('(max-width:375px)');
 
-  /* ── Auth ──────────────────────── */
-  const authed  = useAuthStore(s => s.authed);
-  const user    = useAuthStore(s => s.user);
-  const logout  = useAuthStore(s => s.logout);
-  const refresh = useAuthStore(s => s.refresh);
+  /* ── Auth ───────────────────────────────────────────── */
+  const authed     = useAuthStore(s => s.authed);
+  const user       = useAuthStore(s => s.user);
+  const logout     = useAuthStore(s => s.logout);
+  const refresh    = useAuthStore(s => s.refresh);
   const getHeaders = useAuthStore(s => s.headers);
 
-  /* ── UI ────────────────────────── */
+  /* ── UI ─────────────────────────────────────────────── */
   const theme        = useUIStore(s => s.theme);
   const toggleTheme  = useUIStore(s => s.toggleTheme);
   const view         = useUIStore(s => s.view);
@@ -55,9 +56,10 @@ export default function App() {
   const setPlModal      = useUIStore(s => s.setPlModal);
   const setCtxMenu      = useUIStore(s => s.setCtxMenu);
   const openCtx         = useUIStore(s => s.openCtxMenu);
-  const [showEq, setShowEq] = useState(false);
+  const [showEq, setShowEq]               = useState(false);
+  const [showNowPlaying, setShowNowPlaying] = useState(false);
 
-  /* ── Player ────────────────────── */
+  /* ── Player ─────────────────────────────────────────── */
   const song      = usePlayerStore(s => s.song);
   const playing   = usePlayerStore(s => s.playing);
   const progress  = usePlayerStore(s => s.progress);
@@ -83,37 +85,50 @@ export default function App() {
   const doEnded   = usePlayerStore(s => s.ended);
   const setQueue  = usePlayerStore(s => s.setQueue);
 
-  /* ── Library ───────────────────── */
-  const playlists      = useLibraryStore(s => s.playlists);
-  const liked          = useLibraryStore(s => s.liked);
-  const syncFromServer = useLibraryStore(s => s.syncFromServer);
-  const recordPlay     = useLibraryStore(s => s.recordPlay);
-  const toggleLike     = useLibraryStore(s => s.toggleLike);
-  const createPl       = useLibraryStore(s => s.createPlaylist);
-  const editPl         = useLibraryStore(s => s.editPlaylist);
-  const deletePl       = useLibraryStore(s => s.deletePlaylist);
-  const addToPl        = useLibraryStore(s => s.addToPlaylist);
+  /* ── Library ─────────────────────────────────────────── */
+  const playlists         = useLibraryStore(s => s.playlists);
+  const liked             = useLibraryStore(s => s.liked);
+  const recentSongs       = useLibraryStore(s => s.recentSongs);
+  const searchHistory     = useLibraryStore(s => s.searchHistory);
+  const syncFromServer    = useLibraryStore(s => s.syncFromServer);
+  const recordPlay        = useLibraryStore(s => s.recordPlay);
+  const toggleLike        = useLibraryStore(s => s.toggleLike);
+  const createPl          = useLibraryStore(s => s.createPlaylist);
+  const editPl            = useLibraryStore(s => s.editPlaylist);
+  const deletePl          = useLibraryStore(s => s.deletePlaylist);
+  const addToPl           = useLibraryStore(s => s.addToPlaylist);
+  const addSearchHistory  = useLibraryStore(s => s.addSearchHistory);
+  const clearSearchHistory= useLibraryStore(s => s.clearSearchHistory);
 
-  /* ── EQ ────────────────────────── */
+  /* ── EQ ─────────────────────────────────────────────── */
   const eqStore = useEqStore();
 
-  /* ── Recommendations ──────────────────────────────────── */
-  const [recs,         setRecs]         = useState([]);
-  const [recsLoading,  setRecsLoading]  = useState(false);
-  const [recsBasedOn,  setRecsBasedOn]  = useState([]);
-  const [lastRecsLoad, setLastRecsLoad] = useState(0);
+  /* ── Lyrics ─────────────────────────────────────────── */
+  const lyrics = useLyrics(song, progress, duration);
 
-  const C      = theme === 'dark' ? DARK : LIGHT;
-  const ytRef  = useRef(null);
+  /* ── Sleep timer ─────────────────────────────────────── */
+  const sleepTimer = useSleepTimer(useCallback(() => {
+    setPlaying(false);
+    toast('😴 Sleep timer — music paused', 'info', 5000);
+  }, [setPlaying, toast]));
+
+  /* ── Recommendations ─────────────────────────────────── */
+  const [recs,         setRecs]        = useState([]);
+  const [recsLoading,  setRecsLoading] = useState(false);
+  const [recsBasedOn,  setRecsBasedOn] = useState([]);
+  const [lastRecsLoad, setLastRecsLoad]= useState(0);
+
+  const C       = theme === 'dark' ? DARK : LIGHT;
+  const ytRef   = useRef(null);
   const mainRef = useRef(null);
   const navRef  = useRef(null);
 
-  /* ── Theme attr ─────────────────── */
+  /* ── Theme ───────────────────────────────────────────── */
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  /* ── On auth change ─────────────── */
+  /* ── On auth ─────────────────────────────────────────── */
   useEffect(() => {
     if (!authed) return;
     refresh();
@@ -129,23 +144,19 @@ export default function App() {
     const { force = false, seedArtist = '', seedId = '' } = opts;
     const now = Date.now();
     if (!force && now - lastRecsLoad < 30_000) return;
-
     setRecsLoading(true);
     setLastRecsLoad(now);
     try {
       const params = new URLSearchParams({ limit: 24 });
       if (seedArtist) params.set('seed_artist', seedArtist);
       if (seedId)     params.set('seed_id',     seedId);
-
-      const r = await apiFetch(`/api/recommendations?${params}`, {
-        headers: getHeaders(),
-      });
+      const r = await apiFetch(`/api/recommendations?${params}`, { headers: getHeaders() });
       if (r.ok) {
         const d = await r.json();
         setRecs(d.items    || []);
         setRecsBasedOn(d.basedOn || []);
       }
-    } catch { /* offline — keep existing recs */ }
+    } catch {}
     setRecsLoading(false);
   }, [lastRecsLoad, getHeaders]); // eslint-disable-line
 
@@ -155,22 +166,26 @@ export default function App() {
     loadRecs({ seedArtist: song.artist || '', seedId: song.id });
   }, [song?.id]); // eslint-disable-line
 
-  /* ── ESC closes mobile sidebar ── */
+  /* ── ESC closes mobile sidebar / now playing ── */
   useEffect(() => {
-    if (!mob || !sidebarOpen) return;
-    const h = e => { if (e.key === 'Escape') setSidebar(false); };
+    const h = (e) => {
+      if (e.key === 'Escape') {
+        if (showNowPlaying) { setShowNowPlaying(false); return; }
+        if (mob && sidebarOpen) setSidebar(false);
+      }
+    };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [mob, sidebarOpen, setSidebar]);
+  }, [mob, sidebarOpen, showNowPlaying, setSidebar]);
 
-  /* ── Navigate helper ─────────────── */
+  /* ── Navigate ────────────────────────────────────────── */
   const nav = useCallback((v, extra = {}) => {
     go(v, extra);
     if (mob) setSidebar(false);
     requestAnimationFrame(() => mainRef.current?.focus());
   }, [go, mob, setSidebar]);
 
-  /* ── Skip helpers ── */
+  /* ── Skip helpers ─────────────────────────────────────── */
   const safeNext = useCallback(() => { ytRef.current?.lockSkip(); doNext(); }, [doNext]);
   const safePrev = useCallback(() => {
     ytRef.current?.lockSkip();
@@ -182,93 +197,54 @@ export default function App() {
     if (r === 'restart') ytRef.current?.seekTo(0);
   }, [doEnded]);
 
-  /* ── Seek ── */
+  /* ── Seek ─────────────────────────────────────────────── */
   const seek = useCallback((p) => {
     if (typeof p === 'string') {
       const { progress: cur, duration: dur } = usePlayerStore.getState();
       const d = Math.max(dur, 1);
-      if      (p === 'back5')        p = Math.max(0,   cur - (5 / d) * 100);
-      else if (p === 'fwd5')         p = Math.min(100, cur + (5 / d) * 100);
-      else if (p.startsWith('pct'))  p = parseInt(p.slice(3), 10);
+      if      (p === 'back5')       p = Math.max(0,   cur - (5 / d) * 100);
+      else if (p === 'fwd5')        p = Math.min(100, cur + (5 / d) * 100);
+      else if (p.startsWith('pct')) p = parseInt(p.slice(3), 10);
       else return;
     }
     doSeek(p);
     ytRef.current?.seekTo(p);
   }, [doSeek]);
 
-  /* ── Player error ── */
-  const onErr = useCallback((code) => {
-    toast(
-      code === 101 || code === 150
-        ? "This video can't be embedded — skipping"
-        : 'Playback error — skipping',
-      'error'
-    );
-    safeNext();
-  }, [toast, safeNext]);
-
+  const onErr      = useCallback((code) => { toast(code === 101 || code === 150 ? "This video can't be embedded — skipping" : 'Playback error — skipping', 'error'); safeNext(); }, [toast, safeNext]);
   const onDuration = useCallback(d => { if (d > 0) setDuration(d); }, [setDuration]);
 
-  /* ── Like toggle ── */
+  /* ── Like ─────────────────────────────────────────────── */
   const doLike = useCallback(async (songOrId) => {
     const obj = typeof songOrId === 'string' ? { id: songOrId } : songOrId;
     const isNowLiked = await toggleLike(obj);
-    toast(
-      isNowLiked === false ? 'Removed from Liked Songs' : '♥ Added to Liked Songs',
-      isNowLiked === false ? 'info' : 'success'
-    );
+    toast(isNowLiked === false ? 'Removed from Liked Songs' : '♥ Added to Liked Songs', isNowLiked === false ? 'info' : 'success');
   }, [toggleLike, toast]);
 
-  /* ── Playlist helpers ── */
-  const onCreatePl = async (name, desc) => {
-    await createPl(name, desc); setPlModal(null); toast('Playlist created!', 'success');
-  };
-  const onEditPl = async (id, name, desc) => {
-    await editPl(id, name, desc); setPlModal(null); toast('Updated!', 'success');
-  };
-  const onDeletePl = async (id) => {
-    await deletePl(id);
-    if (playlist?.id === id) nav('library');
-    toast('Playlist deleted');
-  };
-  const onAddToPl = async (song, pid) => {
-    const n = await addToPl(song, pid);
-    toast(`Added to ${n || 'playlist'}!`, 'success');
-  };
+  /* ── Playlist helpers ─────────────────────────────────── */
+  const onCreatePl = async (name, desc) => { await createPl(name, desc); setPlModal(null); toast('Playlist created!', 'success'); };
+  const onEditPl   = async (id, name, desc) => { await editPl(id, name, desc); setPlModal(null); toast('Updated!', 'success'); };
+  const onDeletePl = async (id) => { await deletePl(id); if (playlist?.id === id) nav('library'); toast('Playlist deleted'); };
+  const onAddToPl  = async (song, pid) => { const n = await addToPl(song, pid); toast(`Added to ${n || 'playlist'}!`, 'success'); };
 
-  /* ── Volume keyboard ── */
+  /* ── Volume ───────────────────────────────────────────── */
   const volUp   = useCallback(() => setVolume(Math.min(100, (muted ? 0 : volume) + 5)), [setVolume, volume, muted]);
   const volDown = useCallback(() => setVolume(Math.max(0,   (muted ? 0 : volume) - 5)), [setVolume, volume, muted]);
 
-  /* ── MediaSession ── */
-  useMediaSession({
-    song, playing, duration,
-    onPlay:  useCallback(() => setPlaying(true),  [setPlaying]),
-    onPause: useCallback(() => setPlaying(false), [setPlaying]),
-    onPrev: safePrev, onNext: safeNext, onSeek: seek,
-  });
+  /* ── MediaSession ─────────────────────────────────────── */
+  useMediaSession({ song, playing, duration, onPlay: useCallback(() => setPlaying(true), [setPlaying]), onPause: useCallback(() => setPlaying(false), [setPlaying]), onPrev: safePrev, onNext: safeNext, onSeek: seek });
 
-  /* ── Keyboard shortcuts ── */
-  useKeyboardShortcuts({
-    song, playing, shuffle, repeat, showQueue,
-    onTogglePlay:    useCallback(() => setPlaying(p => !p), [setPlaying]),
-    onPrev: safePrev, onNext: safeNext,
-    onLike:          id => doLike({ id }),
-    onToggleShuffle: useCallback(() => setShuffle(p => !p), [setShuffle]),
-    onToggleRepeat:  useCallback(() => setRepeat(p => !p),  [setRepeat]),
-    onToggleMute:    useCallback(() => setMuted(p => !p),   [setMuted]),
-    onToggleQueue:   useCallback(() => setShowQueue(v => !v), [setShowQueue]),
-    onVolUp: volUp, onVolDown: volDown, onSeek: seek, toast,
-  });
+  /* ── Keyboard shortcuts ───────────────────────────────── */
+  useKeyboardShortcuts({ song, playing, shuffle, repeat, showQueue, onTogglePlay: useCallback(() => setPlaying(p => !p), [setPlaying]), onPrev: safePrev, onNext: safeNext, onLike: id => doLike({ id }), onToggleShuffle: useCallback(() => setShuffle(p => !p), [setShuffle]), onToggleRepeat: useCallback(() => setRepeat(p => !p), [setRepeat]), onToggleMute: useCallback(() => setMuted(p => !p), [setMuted]), onToggleQueue: useCallback(() => setShowQueue(v => !v), [setShowQueue]), onVolUp: volUp, onVolDown: volDown, onSeek: seek, toast });
 
-  /* ── Context menu action ── */
+  /* ── Context menu ─────────────────────────────────────── */
   const onCtxAction = useCallback((action, s, data) => {
     setCtxMenu(null);
     switch (action) {
-      case 'playNext':       setQueue(q => [s, ...q.filter(x => x.id !== s.id)]); toast('Playing next'); break;
-      case 'addQueue':       setQueue(q => [...q, s]); toast('Added to queue'); break;
-      case 'like':           doLike(s); break;
-      case 'addToPlaylist':  onAddToPl(s, data); break;
+      case 'playNext':      setQueue(q => [s, ...q.filter(x => x.id !== s.id)]); toast('Playing next'); break;
+      case 'addQueue':      setQueue(q => [...q, s]); toast('Added to queue'); break;
+      case 'like':          doLike(s); break;
+      case 'addToPlaylist': onAddToPl(s, data); break;
       case 'share':
         navigator.clipboard?.writeText(`https://www.youtube.com/watch?v=${s.id}`)
           .then(() => toast('YouTube link copied!', 'success'))
@@ -278,7 +254,6 @@ export default function App() {
     }
   }, [setCtxMenu, setQueue, doLike, toast]); // eslint-disable-line
 
-  /* ── Sidebar roving tabindex ── */
   const onNavKey = useCallback(e => {
     const items = [...(navRef.current?.querySelectorAll('[data-nav]') || [])];
     const i = items.indexOf(document.activeElement);
@@ -290,29 +265,19 @@ export default function App() {
   }, []);
 
   const NAV = [
-    { id: 'home',   label: 'Home',        icon: I.home     },
-    { id: 'search', label: 'Search',       icon: I.search   },
-    { id: 'library',label: 'Library',      icon: I.lib      },
-    { id: 'local',  label: 'Local Music',  icon: I.download },
-    { id: 'liked',  label: 'Liked',        icon: I.heart, badge: liked.length },
+    { id: 'home',    label: 'Home',       icon: I.home     },
+    { id: 'search',  label: 'Search',     icon: I.search   },
+    { id: 'library', label: 'Library',    icon: I.lib      },
+    { id: 'local',   label: 'Local Music',icon: I.download },
+    { id: 'liked',   label: 'Liked',      icon: I.heart, badge: liked.length },
   ];
 
-  /* ── Auth gate ── */
   if (!authed) return <AuthScreen C={C} isMobile={mob} />;
 
-  /* ── Mobile nav height: 60px + safe-area ── */
-  const mobileNavH = 60; // matches CSS var --mobile-nav-h
-
   return (
-    <div
-      style={{
-        display: 'flex', height: '100vh', background: C.bg, color: C.text,
-        fontFamily: "'Inter',-apple-system,sans-serif",
-        // FIX: prevent horizontal overflow at root level
-        overflow: 'hidden', maxWidth: '100vw',
-      }}
-      onClick={() => ctxMenu && setCtxMenu(null)}
-    >
+    <div style={{ display: 'flex', height: '100vh', background: C.bg, color: C.text, fontFamily: "'Inter',-apple-system,sans-serif", overflow: 'hidden', maxWidth: '100vw' }}
+      onClick={() => ctxMenu && setCtxMenu(null)}>
+
       {/* a11y */}
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {song ? `${playing ? 'Playing' : 'Paused'}: ${song.title} by ${song.artist}` : 'No song selected'}
@@ -320,85 +285,38 @@ export default function App() {
       <a href="#main" className="sr-only sr-only-focusable">Skip to content</a>
 
       {/* Mobile backdrop */}
-      {mob && sidebarOpen && (
-        <div aria-hidden="true" onClick={() => setSidebar(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 49 }} />
-      )}
+      {mob && sidebarOpen && <div aria-hidden="true" onClick={() => setSidebar(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 49 }} />}
 
       {/* ── Sidebar ─────────────────────────────────────── */}
       {sidebarOpen && (
-        <aside
-          role={mob ? 'dialog' : 'navigation'}
-          aria-modal={mob || undefined}
-          aria-label="Main navigation"
-          style={{
-            // FIX: use min() to cap at 85vw on mobile
-            width: mob ? 'min(240px, 85vw)' : 240,
-            flexShrink: 0, background: C.surface,
-            borderRight: `1px solid ${C.border}`,
-            display: 'flex', flexDirection: 'column', zIndex: 50, overflow: 'hidden',
-            ...(mob ? { position: 'fixed', left: 0, top: 0, bottom: 0, boxShadow: '8px 0 40px rgba(0,0,0,.5)' } : {}),
-          }}
-        >
+        <aside role={mob ? 'dialog' : 'navigation'} aria-modal={mob || undefined} aria-label="Main navigation"
+          style={{ width: mob ? 'min(240px, 85vw)' : 240, flexShrink: 0, background: C.surface, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', zIndex: 50, overflow: 'hidden', ...(mob ? { position: 'fixed', left: 0, top: 0, bottom: 0, boxShadow: '8px 0 40px rgba(0,0,0,.5)' } : {}) }}>
+
           {/* Logo */}
           <div style={{ padding: '20px 18px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: gradStr(0),
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: gradStr(0), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Svg d={I.music} size={16} fill="rgba(255,255,255,.3)" stroke="#fff" />
               </div>
-              <span style={{ fontSize: 16, fontWeight: 900, background: gradStr(0),
-                             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                             // FIX: prevent text overflow in logo area
-                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>
+              <span style={{ fontSize: 16, fontWeight: 900, background: gradStr(0), WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>
                 Loqa Music
               </span>
             </div>
-            {mob && (
-              <button onClick={() => setSidebar(false)} aria-label="Close menu"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text3,
-                         // FIX: proper touch target
-                         padding: '8px', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Svg d={I.close} size={18} stroke="currentColor" />
-              </button>
-            )}
+            {mob && <button onClick={() => setSidebar(false)} aria-label="Close menu" style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text3, padding: '8px', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Svg d={I.close} size={18} stroke="currentColor" /></button>}
           </div>
 
           {/* Primary nav */}
           <nav aria-label="Primary" ref={navRef} onKeyDown={onNavKey} style={{ padding: '0 10px 10px' }}>
             {NAV.map(item => {
               const isLikedItem = item.id === 'liked';
-              const active = view === item.id ||
-                             (isLikedItem && view === 'playlist' && playlist?.id === 'liked');
+              const active = view === item.id || (isLikedItem && view === 'playlist' && playlist?.id === 'liked');
               return (
-                <button
-                  key={item.id} data-nav tabIndex={active ? 0 : -1}
-                  aria-current={active ? 'page' : undefined}
-                  onClick={() =>
-                    isLikedItem
-                      ? nav('playlist', { playlist: { id: 'liked', name: 'Liked Songs', songs: liked, ci: 1 } })
-                      : nav(item.id)
-                  }
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                    // FIX: ensure min touch height
-                    padding: '10px 14px', minHeight: 44,
-                    borderRadius: 10, border: 'none', cursor: 'pointer', marginBottom: 2,
-                    background: active ? `rgba(${C.accentRgb},.15)` : 'transparent',
-                    color: active ? C.accent : C.text2,
-                    fontWeight: active ? 600 : 400, fontSize: 13.5, textAlign: 'left',
-                    transition: 'all .15s', fontFamily: 'inherit',
-                  }}
-                >
-                  <Svg d={item.icon} size={16} stroke="currentColor"
-                       fill={isLikedItem && active ? C.accent2 : 'none'} />
+                <button key={item.id} data-nav tabIndex={active ? 0 : -1} aria-current={active ? 'page' : undefined}
+                  onClick={() => isLikedItem ? nav('playlist', { playlist: { id: 'liked', name: 'Liked Songs', songs: liked, ci: 1 } }) : nav(item.id)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', minHeight: 44, borderRadius: 10, border: 'none', cursor: 'pointer', marginBottom: 2, background: active ? `rgba(${C.accentRgb},.15)` : 'transparent', color: active ? C.accent : C.text2, fontWeight: active ? 600 : 400, fontSize: 13.5, textAlign: 'left', transition: 'all .15s', fontFamily: 'inherit' }}>
+                  <Svg d={item.icon} size={16} stroke="currentColor" fill={isLikedItem && active ? C.accent2 : 'none'} />
                   {item.label}
-                  {item.badge > 0 && (
-                    <span style={{ marginLeft: 'auto', background: C.accent2, color: '#fff',
-                                   fontSize: 10, fontWeight: 700, borderRadius: 10, padding: '1px 7px', flexShrink: 0 }}>
-                      {item.badge}
-                    </span>
-                  )}
+                  {item.badge > 0 && <span style={{ marginLeft: 'auto', background: C.accent2, color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 10, padding: '1px 7px', flexShrink: 0 }}>{item.badge}</span>}
                 </button>
               );
             })}
@@ -408,74 +326,42 @@ export default function App() {
 
           {/* Playlist list */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          padding: '2px 14px 8px', color: C.text3, fontSize: 10.5,
-                          textTransform: 'uppercase', letterSpacing: 1.2, fontWeight: 700 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 14px 8px', color: C.text3, fontSize: 10.5, textTransform: 'uppercase', letterSpacing: 1.2, fontWeight: 700 }}>
               <span>Playlists</span>
-              <button onClick={() => setPlModal({ mode: 'create' })} aria-label="New playlist"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text3,
-                         // FIX: proper touch target
-                         padding: 8, minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button onClick={() => setPlModal({ mode: 'create' })} aria-label="New playlist" style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text3, padding: 8, minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Svg d={I.plus} size={13} stroke="currentColor" />
               </button>
             </div>
             {playlists.map(pl => {
               const active = view === 'playlist' && playlist?.id === pl.id;
               return (
-                <button key={pl.id} onClick={() => nav('playlist', { playlist: pl })}
-                  aria-current={active ? 'page' : undefined}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 9,
-                    padding: '7px 14px', minHeight: 40,
-                    borderRadius: 8, border: 'none', cursor: 'pointer', marginBottom: 1,
-                    background: active ? `rgba(${C.accentRgb},.12)` : 'transparent',
-                    color: active ? C.accent : C.text2, fontSize: 13, textAlign: 'left',
-                    transition: 'all .15s', fontFamily: 'inherit',
-                  }}
-                >
+                <button key={pl.id} onClick={() => nav('playlist', { playlist: pl })} aria-current={active ? 'page' : undefined}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '7px 14px', minHeight: 40, borderRadius: 8, border: 'none', cursor: 'pointer', marginBottom: 1, background: active ? `rgba(${C.accentRgb},.12)` : 'transparent', color: active ? C.accent : C.text2, fontSize: 13, textAlign: 'left', transition: 'all .15s', fontFamily: 'inherit' }}>
                   <div style={{ width: 26, height: 26, borderRadius: 7, background: gradStr(pl.ci ?? 0), flexShrink: 0 }} />
-                  <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {pl.name}
-                  </span>
-                  <span style={{ fontSize: 11, opacity: .5, flexShrink: 0 }}>{pl.songs.length}</span>
+                  <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pl.name}</span>
+                  <span style={{ fontSize: 11, opacity: .5, flexShrink: 0 }}>{pl.songs?.length ?? 0}</span>
                 </button>
               );
             })}
-            {playlists.length === 0 && (
-              <p style={{ padding: '8px 14px', fontSize: 12, color: C.text3, margin: 0 }}>No playlists yet</p>
-            )}
+            {playlists.length === 0 && <p style={{ padding: '8px 14px', fontSize: 12, color: C.text3, margin: 0 }}>No playlists yet</p>}
           </div>
 
           {/* User footer */}
-          <div style={{ padding: '12px 14px', borderTop: `1px solid ${C.border}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '12px 14px', borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, flex: 1 }}>
-              <div style={{
-                width: 30, height: 30, borderRadius: '50%', background: gradStr(user?.avatarCi ?? 3),
-                flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.9)',
-              }}>
+              <div style={{ width: 30, height: 30, borderRadius: '50%', background: gradStr(user?.avatarCi ?? 3), flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.9)' }}>
                 {user?.name?.[0]?.toUpperCase() || 'U'}
               </div>
-              <span style={{ fontSize: 12, fontWeight: 500, color: C.text, whiteSpace: 'nowrap',
-                             overflow: 'hidden', textOverflow: 'ellipsis',
-                             // FIX: cap width based on available space
-                             maxWidth: mob ? 80 : 90 }}>
-                {user?.name}
-              </span>
+              <span style={{ fontSize: 12, fontWeight: 500, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: mob ? 80 : 90 }}>{user?.name}</span>
             </div>
             <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
               {[
-                { icon: I.gear,                          label: 'Settings', fn: () => setShowSettings(true) },
-                { icon: theme === 'dark' ? I.sun : I.moon, label: 'Theme', fn: toggleTheme },
-                { icon: I.logout,                        label: 'Sign out', fn: logout },
+                { icon: I.gear,                             label: 'Settings', fn: () => setShowSettings(true) },
+                { icon: theme === 'dark' ? I.sun : I.moon, label: 'Theme',    fn: toggleTheme },
+                { icon: I.logout,                           label: 'Sign out', fn: logout },
               ].map(({ icon, label, fn }, idx) => (
                 <button key={idx} onClick={fn} aria-label={label}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text3,
-                           // FIX: min touch target
-                           padding: 6, minWidth: 36, minHeight: 36,
-                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                           borderRadius: 6, transition: 'color .15s' }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text3, padding: 6, minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, transition: 'color .15s' }}
                   onMouseEnter={e => e.currentTarget.style.color = C.text}
                   onMouseLeave={e => e.currentTarget.style.color = C.text3}>
                   <Svg d={icon} size={13} stroke="currentColor" />
@@ -490,101 +376,47 @@ export default function App() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
 
         {/* Header */}
-        <header style={{
-          background: C.glass, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-          borderBottom: `1px solid ${C.border}`,
-          // FIX: tighter padding on mobile
-          padding: mob ? (tiny ? '8px 10px' : '10px 14px') : '12px 22px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexShrink: 0, position: 'sticky', top: 0, zIndex: 40,
-          // FIX: don't overflow horizontally
-          minWidth: 0, overflow: 'hidden',
-        }}>
+        <header style={{ background: C.glass, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: `1px solid ${C.border}`, padding: mob ? (tiny ? '8px 10px' : '10px 14px') : '12px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, position: 'sticky', top: 0, zIndex: 40, minWidth: 0, overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: mob ? 8 : 10, minWidth: 0, flex: 1 }}>
-            <button onClick={() => setSidebar(p => !p)}
-              aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
-              aria-expanded={sidebarOpen}
-              style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 9,
-                       // FIX: min touch target on mobile
-                       padding: mob ? '6px 7px' : '6px 8px', cursor: 'pointer', color: C.text2,
-                       minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                       flexShrink: 0 }}>
+            <button onClick={() => setSidebar(p => !p)} aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'} aria-expanded={sidebarOpen}
+              style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 9, padding: mob ? '6px 7px' : '6px 8px', cursor: 'pointer', color: C.text2, minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Svg d={I.menu} size={16} stroke="currentColor" />
             </button>
-            <h1 style={{
-              fontSize: mob ? (tiny ? 13 : 15) : 19,
-              fontWeight: 800, color: C.text, margin: 0,
-              // FIX: prevent title from causing overflow
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              minWidth: 0,
-            }}>
-              {view === 'home'     ? 'Discover'
-              : view === 'search'  ? 'Search'
-              : view === 'library' ? 'Library'
-              : view === 'local'   ? 'Local Music'
-              : view === 'genre'   ? (genre || 'Genre')
-              : view === 'playlist'? (playlist?.name || 'Playlist')
-              : 'Loqa Music'}
+            <h1 style={{ fontSize: mob ? (tiny ? 13 : 15) : 19, fontWeight: 800, color: C.text, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+              {view === 'home' ? 'Discover' : view === 'search' ? 'Search' : view === 'library' ? 'Library' : view === 'local' ? 'Local Music' : view === 'genre' ? (genre || 'Genre') : view === 'playlist' ? (playlist?.name || 'Playlist') : 'Loqa Music'}
             </h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: mob ? 6 : 8, flexShrink: 0 }}>
             <button onClick={() => setShowEq(e => !e)} aria-label="Equalizer" aria-pressed={showEq}
-              style={{
-                padding: mob ? '6px 8px' : '6px 12px',
-                display: 'flex', alignItems: 'center', gap: 5,
-                background: showEq ? `rgba(${C.accentRgb},.15)` : C.bg3,
-                border: `1px solid ${showEq ? C.accent : C.border}`,
-                borderRadius: 10, color: showEq ? C.accent : C.text2,
-                fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
-                minWidth: 36, minHeight: 36,
-              }}>
+              style={{ padding: mob ? '6px 8px' : '6px 12px', display: 'flex', alignItems: 'center', gap: 5, background: showEq ? `rgba(${C.accentRgb},.15)` : C.bg3, border: `1px solid ${showEq ? C.accent : C.border}`, borderRadius: 10, color: showEq ? C.accent : C.text2, fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', minWidth: 36, minHeight: 36 }}>
               🎛️{!mob && ' EQ'}
             </button>
+            {/* Now Playing mini indicator — click to open full screen */}
             {song && !mob && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 12px',
-                            background: C.bg3, borderRadius: 20, border: `1px solid ${C.border}`,
-                            fontSize: 12, maxWidth: 180, overflow: 'hidden' }}
-                   aria-live="polite">
+              <button onClick={() => setShowNowPlaying(true)} aria-label="Open Now Playing"
+                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 12px', background: C.bg3, borderRadius: 20, border: `1px solid ${C.border}`, fontSize: 12, maxWidth: 200, overflow: 'hidden', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {playing && <EqBars size={13} color={C.accent} />}
-                <span style={{ color: C.text, fontWeight: 500, whiteSpace: 'nowrap',
-                               overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {song.title}
-                </span>
-              </div>
+                <span style={{ color: C.text, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</span>
+              </button>
             )}
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: gradStr(user?.avatarCi ?? 3),
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.9)', flexShrink: 0 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: gradStr(user?.avatarCi ?? 3), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,.9)', flexShrink: 0 }}>
               {user?.name?.[0]?.toUpperCase() || 'U'}
             </div>
           </div>
         </header>
 
-        {/* Keyboard hint strip — desktop only */}
+        {/* Keyboard hint strip */}
         {!mob && (
-          <div aria-hidden="true" style={{ padding: '4px 22px', background: C.bg2,
-            borderBottom: `1px solid ${C.border}`, display: 'flex', gap: 14,
-            fontSize: 10.5, color: C.text3, flexShrink: 0, flexWrap: 'wrap' }}>
-            {[['Space', 'Play/Pause'], ['←→', 'Skip'], ['Shift+←→', 'Seek ±5s'],
-              ['↑↓', 'Volume'], ['0-9', 'Jump %'], ['L', 'Like'],
-              ['S', 'Shuffle'], ['R', 'Repeat'], ['M', 'Mute'], ['Q', 'Queue']
-            ].map(([k, v]) => (
-              <span key={k}>
-                <kbd style={{ background: C.bg3, border: `1px solid ${C.border}`,
-                              borderRadius: 3, padding: '0 4px', fontFamily: 'monospace', fontSize: 10 }}>
-                  {k}
-                </kbd>{' '}{v}
-              </span>
+          <div aria-hidden="true" style={{ padding: '4px 22px', background: C.bg2, borderBottom: `1px solid ${C.border}`, display: 'flex', gap: 14, fontSize: 10.5, color: C.text3, flexShrink: 0, flexWrap: 'wrap' }}>
+            {[['Space','Play/Pause'],['←→','Skip'],['Shift+←→','Seek ±5s'],['↑↓','Volume'],['0-9','Jump %'],['L','Like'],['S','Shuffle'],['R','Repeat'],['M','Mute'],['Q','Queue']].map(([k, v]) => (
+              <span key={k}><kbd style={{ background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 3, padding: '0 4px', fontFamily: 'monospace', fontSize: 10 }}>{k}</kbd>{' '}{v}</span>
             ))}
           </div>
         )}
 
-        {/* ── Main content ── */}
+        {/* ── Main content ────────────────────────────────── */}
         <main id="main" ref={mainRef} tabIndex={-1} aria-label="Main content"
-          style={{
-            flex: 1, overflowY: 'auto', overflowX: 'hidden',
-            padding: mob ? (tiny ? '12px 10px 0' : '14px 12px 0') : '24px 28px 0',
-          }}>
+          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: mob ? (tiny ? '12px 10px 0' : '14px 12px 0') : '24px 28px 0' }}>
 
           {view === 'home' && (
             <HomeView C={C} song={song} playing={playing} liked={liked}
@@ -592,146 +424,127 @@ export default function App() {
               onLike={doLike} onCtx={openCtx} go={nav} isMobile={mob}
               recommendations={recs} recsLoading={recsLoading}
               recsBasedOn={recsBasedOn}
+              recentSongs={recentSongs}
               onRefreshRecs={() => loadRecs({ force: true, seedArtist: song?.artist || '', seedId: song?.id || '' })} />
           )}
           {view === 'search' && (
             <SearchView C={C} song={song} playing={playing} liked={liked}
               onPlay={(s, opts) => doPlay(s, opts)}
-              onLike={doLike} onCtx={openCtx} initialQ={searchQ} />
+              onLike={doLike} onCtx={openCtx} initialQ={searchQ}
+              searchHistory={searchHistory}
+              onAddSearchHistory={addSearchHistory}
+              onClearSearchHistory={clearSearchHistory}
+              isMobile={mob} />
           )}
           {view === 'library' && (
             <LibraryView C={C} playlists={playlists} liked={liked}
               onOpen={pl => nav('playlist', { playlist: pl })}
               onDelete={onDeletePl}
               onEdit={pl => setPlModal({ mode: 'edit', pl })}
-              onCreate={() => setPlModal({ mode: 'create' })} />
+              onCreate={() => setPlModal({ mode: 'create' })}
+              go={nav} />
           )}
           {view === 'local' && (
             <LocalPlayer C={C} isMobile={mob} onSwitchToYT={() => nav('search')} />
           )}
           {view === 'playlist' && playlist && (
             <PlaylistDetailView C={C}
-              playlist={playlist.id === 'liked'
-                ? { ...playlist, songs: liked }
-                : playlist}
+              playlist={playlist.id === 'liked' ? { ...playlist, songs: liked } : playlist}
               song={song} playing={playing} liked={liked}
               onPlay={(s, opts) => doPlay(s, opts)} onPlayAll={playAll}
-              onLike={doLike} onCtx={openCtx}
-              onBack={() => nav('library')} />
+              onLike={doLike} onCtx={openCtx} onBack={() => nav('library')} />
           )}
           {view === 'genre' && genre && (
             <GenreView C={C} genre={genre} song={song} playing={playing} liked={liked}
               onPlay={(s, opts) => doPlay(s, opts)}
-              onLike={doLike} onCtx={openCtx}
-              onBack={() => nav('home')} />
+              onLike={doLike} onCtx={openCtx} onBack={() => nav('home')} />
           )}
-
-          {/*
-            FIX: Bottom spacer accounts for:
-            - Mobile: player bar (~78px) + bottom nav (60px) + extra buffer = 150px
-            - Desktop: just some breathing room = 24px
-          */}
           <div style={{ height: mob ? 150 : 24 }} aria-hidden="true" />
         </main>
 
-        {/* Player bar */}
+        {/* ── Player bar — clicking song info opens Now Playing ── */}
         <PlayerBar C={C}
           song={song} playing={playing} progress={progress} duration={duration}
           volume={volume} muted={muted} shuffle={shuffle} repeat={repeat}
           liked={liked.includes(song?.id || '')}
-          showQueue={showQueue} showLyrics={false}
+          showQueue={showQueue} showLyrics={showNowPlaying}
+          hasLyrics={lyrics.hasLyrics}
           onTogglePlay={() => setPlaying(p => !p)}
           onPrev={safePrev} onNext={safeNext} onSeek={seek}
           onVolume={setVolume} onMute={() => setMuted(p => !p)}
           onShuffle={() => { setShuffle(p => !p); toast(!shuffle ? 'Shuffle on' : 'Shuffle off'); }}
-          onRepeat={() => { setRepeat(p => !p);  toast(!repeat  ? 'Repeat on'  : 'Repeat off');  }}
+          onRepeat={() =>  { setRepeat(p => !p);  toast(!repeat  ? 'Repeat on'  : 'Repeat off');  }}
           onLike={id => doLike({ id })}
-          onToggleLyrics={() => {}}
+          onToggleLyrics={() => setShowNowPlaying(v => !v)}
           onToggleQueue={() => setShowQueue(!showQueue)}
+          onOpenNowPlaying={() => setShowNowPlaying(true)}
           playlists={playlists}
           onAddToPlaylist={onAddToPl}
           isMobile={mob} />
       </div>
 
-      {/* Mobile bottom nav */}
+      {/* ── Mobile bottom nav ───────────────────────────── */}
       {mob && (
-        <nav aria-label="Mobile navigation"
-          style={{
-            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
-            background: C.player, borderTop: `1px solid ${C.border}`,
-            display: 'flex', justifyContent: 'space-around', alignItems: 'stretch',
-            // FIX: account for iOS safe area; CSS also handles this via @supports
-            height: 60,
-          }}>
+        <nav aria-label="Mobile navigation" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, background: C.player, borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-around', alignItems: 'stretch', height: 60 }}>
           {NAV.filter(n => n.id !== 'liked').map(item => {
             const active = view === item.id;
             return (
-              <button key={item.id} onClick={() => nav(item.id)}
-                aria-label={item.label} aria-current={active ? 'page' : undefined}
-                style={{
-                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  justifyContent: 'center', gap: 3,
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: active ? C.accent : C.text3,
-                  padding: '4px 0', transition: 'color .15s',
-                  fontFamily: 'inherit',
-                  // FIX: min touch target
-                  minHeight: 44,
-                }}>
+              <button key={item.id} onClick={() => nav(item.id)} aria-label={item.label} aria-current={active ? 'page' : undefined}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: active ? C.accent : C.text3, padding: '4px 0', transition: 'color .15s', fontFamily: 'inherit', minHeight: 44 }}>
                 <Svg d={item.icon} size={20} stroke="currentColor" />
-                {/* FIX: hide label text on very tiny screens */}
-                <span style={{ fontSize: tiny ? 0 : 10, fontWeight: active ? 700 : 500,
-                               // 0 font-size hides text but keeps element for a11y
-                               lineHeight: tiny ? 0 : 1.2 }}>
-                  {item.label}
-                </span>
+                <span style={{ fontSize: tiny ? 0 : 10, fontWeight: active ? 700 : 500, lineHeight: tiny ? 0 : 1.2 }}>{item.label}</span>
               </button>
             );
           })}
           <button onClick={() => setSidebar(p => !p)} aria-label="More"
-            style={{
-              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', gap: 3,
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: C.text3, padding: '4px 0', fontFamily: 'inherit', minHeight: 44,
-            }}>
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: C.text3, padding: '4px 0', fontFamily: 'inherit', minHeight: 44 }}>
             <Svg d={I.menu} size={20} stroke="currentColor" />
             <span style={{ fontSize: tiny ? 0 : 10, fontWeight: 500, lineHeight: tiny ? 0 : 1.2 }}>More</span>
           </button>
         </nav>
       )}
 
-      {/* ── Portals ── */}
+      {/* ── Portals ─────────────────────────────────────── */}
+
+      {/* Full-screen Now Playing */}
+      {showNowPlaying && song && (
+        <NowPlayingView
+          C={C} song={song} playing={playing} progress={progress} duration={duration}
+          volume={volume} muted={muted} shuffle={shuffle} repeat={repeat}
+          liked={liked.includes(song?.id || '')}
+          queue={queue} related={related}
+          lyrics={lyrics}
+          sleepTimer={sleepTimer}
+          onTogglePlay={() => setPlaying(p => !p)}
+          onPrev={safePrev} onNext={safeNext} onSeek={seek}
+          onVolume={setVolume} onMute={() => setMuted(p => !p)}
+          onShuffle={() => { setShuffle(p => !p); toast(!shuffle ? 'Shuffle on' : 'Shuffle off'); }}
+          onRepeat={() =>  { setRepeat(p => !p);  toast(!repeat  ? 'Repeat on'  : 'Repeat off');  }}
+          onLike={id => doLike({ id })}
+          onClose={() => setShowNowPlaying(false)}
+          onToggleQueue={() => { setShowNowPlaying(false); setShowQueue(true); }}
+          onPlayFromQueue={(s, i) => { ytRef.current?.lockSkip(); setQueue(q => q.filter(x => x.id !== s.id)); doPlay(s, { toggle: false, fromQ: true }); }}
+          onRemoveFromQueue={i => setQueue(q => q.filter((_, j) => j !== i))}
+          isMobile={mob}
+        />
+      )}
 
       {showQueue && createPortal(
-        <QueuePanel C={C} queue={queue} related={related}
-          song={song} playing={playing}
-          onPlay={(s) => {
-            ytRef.current?.lockSkip();
-            setQueue(q => q.filter(x => x.id !== s.id));
-            doPlay(s, { toggle: false, fromQ: true });
-          }}
+        <QueuePanel C={C} queue={queue} related={related} song={song} playing={playing}
+          onPlay={(s) => { ytRef.current?.lockSkip(); setQueue(q => q.filter(x => x.id !== s.id)); doPlay(s, { toggle: false, fromQ: true }); }}
           onRemove={i => setQueue(q => q.filter((_, j) => j !== i))}
-          onClose={() => setShowQueue(false)}
-          isMobile={mob} />,
+          onClose={() => setShowQueue(false)} isMobile={mob} />,
         PORTAL_ROOT
       )}
 
       {showEq && createPortal(
-        <Equalizer C={C} eqStore={eqStore}
-          onClose={() => setShowEq(false)}
-          isMobile={mob}
-          isYoutube={!!(song && !song.isLocal)} />,
+        <Equalizer C={C} eqStore={eqStore} onClose={() => setShowEq(false)} isMobile={mob} isYoutube={!!(song && !song.isLocal)} />,
         PORTAL_ROOT
       )}
 
       {plModal && createPortal(
         <PlaylistModal C={C} mode={plModal.mode} pl={plModal.pl}
-          onSave={(name, desc) =>
-            plModal.mode === 'edit'
-              ? onEditPl(plModal.pl.id, name, desc)
-              : onCreatePl(name, desc)
-          }
+          onSave={(name, desc) => plModal.mode === 'edit' ? onEditPl(plModal.pl.id, name, desc) : onCreatePl(name, desc)}
           onClose={() => setPlModal(null)} />,
         PORTAL_ROOT
       )}
@@ -744,18 +557,12 @@ export default function App() {
       )}
 
       {ctxMenu && createPortal(
-        <CtxMenu C={C} menu={ctxMenu} playlists={playlists}
-          onAction={onCtxAction} onClose={() => setCtxMenu(null)} />,
+        <CtxMenu C={C} menu={ctxMenu} playlists={playlists} onAction={onCtxAction} onClose={() => setCtxMenu(null)} />,
         PORTAL_ROOT
       )}
 
-      {/* Hidden YouTube audio driver */}
-      <YouTubePlayer
-        ref={ytRef}
-        song={song?.isLocal ? null : song}
-        playing={playing} volume={volume} muted={muted}
-        onEnded={safeEnd} onProgress={setProgress}
-        onError={onErr} onDuration={onDuration} />
+      <YouTubePlayer ref={ytRef} song={song?.isLocal ? null : song} playing={playing} volume={volume} muted={muted}
+        onEnded={safeEnd} onProgress={setProgress} onError={onErr} onDuration={onDuration} />
 
       <Toaster toasts={toasts} C={C} isMobile={mob} />
     </div>

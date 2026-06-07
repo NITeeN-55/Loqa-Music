@@ -1,230 +1,163 @@
-/* ================================================================
-   Loqa Music — index.css  (updated with responsive improvements)
-   ================================================================ */
+/* Loqa Music — Global Styles v5 */
 
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{
-  -webkit-text-size-adjust:100%;
-  /* FIX: Prevent horizontal overflow on mobile */
-  overflow-x:hidden;
-  max-width:100vw;
-}
-body{
-  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  line-height:1.5;
-  -webkit-font-smoothing:antialiased;
-  /* FIX: Prevent body overflow */
-  overflow-x:hidden;
-}
-/* FIX: flex children never blow layout */
-*{min-width:0;}
-a{color:inherit;text-decoration:none}
-button{font-family:inherit;cursor:pointer}
-input,textarea{font-family:inherit}
-img{display:block;max-width:100%}
+/* ── Base reset ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { height: 100%; -webkit-text-size-adjust: 100%; }
+body { margin: 0; height: 100%; overscroll-behavior: none; }
+#root { height: 100%; }
+#loqa-portals { position: fixed; inset: 0; pointer-events: none; z-index: 200; }
+#loqa-portals > * { pointer-events: auto; }
 
-/* ── CSS Custom Properties ──────────────────────────────── */
-:root{
-  --accent:#6C63FF;--accent2:#FF6584;--accent3:#43E97B;
-  --radius:12px;--radius-sm:8px;--radius-lg:20px;--radius-pill:999px;
-  --trans:0.18s ease;--trans-slow:0.35s ease;
-  --shadow:0 4px 24px rgba(0,0,0,.18);--shadow-lg:0 16px 48px rgba(0,0,0,.32);
-  /* FIX: standard nav heights for safe spacing calculations */
-  --mobile-nav-h: 60px;
-  --player-bar-h: 80px;
-  --mobile-player-h: 78px;
+/* ── Typography ─────────────────────────────────────────── */
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+
+/* ── Accessibility ──────────────────────────────────────── */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
 }
-[data-theme=dark]{
-  --bg:#0A0A0F;--bg2:#111118;--bg3:#16161E;--bg4:#1C1C26;
-  --surface:#13131A;--surface2:#1A1A24;
-  --text:#F0F0FF;--text2:#9090B0;--text3:#5A5A7A;
-  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);
-  --player:rgba(10,10,15,.97);--glass:rgba(13,13,20,.85);--overlay:rgba(0,0,0,.7);
+.sr-only-focusable:focus {
+  position: fixed; top: 8px; left: 8px; width: auto; height: auto;
+  padding: 8px 16px; margin: 0; overflow: visible; clip: auto;
+  white-space: normal; border-radius: 8px; background: #7c6fff;
+  color: #fff; font-weight: 700; z-index: 9999;
 }
-[data-theme=light]{
-  --bg:#F4F4F8;--bg2:#ECECF4;--bg3:#E2E2EE;--bg4:#D8D8E8;
-  --surface:#FFFFFF;--surface2:#F8F8FC;
-  --text:#0D0D1A;--text2:#4A4A6A;--text3:#9090A8;
-  --border:rgba(0,0,0,.08);--border2:rgba(0,0,0,.14);
-  --player:rgba(255,255,255,.97);--glass:rgba(255,255,255,.9);--overlay:rgba(0,0,0,.5);
+:focus-visible {
+  outline: 2px solid var(--accent, #7c6fff);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
+:focus:not(:focus-visible) { outline: none; }
 
 /* ── Scrollbar ──────────────────────────────────────────── */
-*::-webkit-scrollbar{width:4px;height:4px}
-*::-webkit-scrollbar-track{background:transparent}
-*::-webkit-scrollbar-thumb{background:var(--text3);border-radius:4px}
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.22); }
 
-/* ── Focus Styles ───────────────────────────────────────── */
-button:focus-visible,a:focus-visible,[role=button]:focus-visible,[role=slider]:focus-visible,input:focus-visible{
-  outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+/* ── EQ bars animation ──────────────────────────────────── */
+@keyframes eq0 { 0%,100% { height: 30%; } 50% { height: 100%; } }
+@keyframes eq1 { 0%,100% { height: 60%; } 50% { height: 30%; } }
+@keyframes eq2 { 0%,100% { height: 80%; } 50% { height: 20%; } }
+@keyframes eq3 { 0%,100% { height: 40%; } 50% { height: 90%; } }
 
-/* FIX: No sticky focus rings on touch devices */
-@media(hover:none){
-  button:focus:not(:focus-visible),[role=button]:focus:not(:focus-visible){outline:none;}
+/* ── Spinner ─────────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin .8s linear infinite; transform-origin: center; }
+
+/* ── Fade up entrance ────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp .22s ease both; }
+
+/* ── Slide in from bottom (Now Playing) ──────────────────── */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
 
-/* ── Range Input ────────────────────────────────────────── */
-input[type=range]{-webkit-appearance:none;appearance:none;height:3px;background:var(--text3);border-radius:3px;cursor:pointer}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
-input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:#fff;border:none;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+/* ── Player bar ─────────────────────────────────────────── */
+.loqa-ctrl { transition: opacity .15s, transform .12s; }
+.loqa-ctrl:hover { opacity: 1 !important; transform: scale(1.08); }
+.loqa-ctrl:active { transform: scale(.92); }
+.loqa-play { transition: transform .15s, box-shadow .25s; }
+.loqa-play:hover { transform: scale(1.06); }
 
-/* ── Screen Reader Utilities ────────────────────────────── */
-.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.sr-only-focusable:focus{position:fixed;z-index:9999;top:0;left:0;width:auto;height:auto;padding:10px 20px;margin:0;overflow:visible;clip:auto;white-space:normal;background:var(--accent);color:#fff;font-weight:700;font-size:13px;border-radius:0 0 8px 0}
-
-/* ── Animations ─────────────────────────────────────────── */
-@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-@keyframes eq0{0%,100%{height:30%}50%{height:90%}}
-@keyframes eq1{0%,100%{height:60%}50%{height:100%}}
-@keyframes eq2{0%,100%{height:40%}50%{height:70%}}
-@keyframes eq3{0%,100%{height:80%}50%{height:40%}}
-.fade-up{animation:fadeUp .3s ease forwards}
-.spin{animation:spin 1s linear infinite}
-
-/* ── Reduce Motion ──────────────────────────────────────── */
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;}
-  .fade-up{animation:none!important;opacity:1!important;transform:none!important;}
+/* ── Volume slider ──────────────────────────────────────── */
+.loqa-vol {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  border-radius: 3px;
+  cursor: pointer;
+  outline: none;
+}
+.loqa-vol::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.3);
+}
+.loqa-vol::-moz-range-thumb {
+  width: 12px; height: 12px;
+  border-radius: 50%; border: none;
+  background: #fff; cursor: pointer;
 }
 
+/* ── Seek area ──────────────────────────────────────────── */
+.loqa-seek { user-select: none; -webkit-user-select: none; touch-action: none; }
+.loqa-seek-track { transition: height .15s; }
 
-/* ================================================================
-   RESPONSIVE OVERRIDES
-   ================================================================ */
+/* ── Horizontal scroll area ─────────────────────────────── */
+.hscroll {
+  display: flex; gap: 14px;
+  overflow-x: auto; overflow-y: hidden;
+  padding-bottom: 10px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+.hscroll::-webkit-scrollbar { display: none; }
+.hscroll > * { scroll-snap-align: start; flex-shrink: 0; }
 
-/* ── Touch targets (WCAG 2.5.5) ─────────────────────────── */
-@media(max-width:768px){
-  button,[role=button],a{
-    min-height:44px;
-    min-width:44px;
-  }
-  /* Exception: inline icon buttons — still accessible via padding */
-  button[aria-label]{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-  }
+/* ── Song thumbnail ─────────────────────────────────────── */
+.loqa-thumb {
+  background-color: var(--thumb-bg, #1a1a2a);
+  overflow: hidden;
+  position: relative;
+}
+.loqa-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Mobile safe area ───────────────────────────────────── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .loqa-player-bar { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  nav[aria-label="Mobile navigation"] { height: calc(60px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); }
 }
 
-/* ── Mobile nav height accounting ───────────────────────── */
-@media(max-width:768px){
-  main[aria-label="Main content"]{
-    /* spacer div in JSX is 110px — boost to clear player + nav */
-    padding-bottom:calc(var(--mobile-player-h) + var(--mobile-nav-h) + 16px) !important;
-  }
+/* ── Lyrics scrolling ───────────────────────────────────── */
+.lyrics-line {
+  transition: font-size .3s ease, color .3s ease, font-weight .3s ease;
 }
 
-/* ── Safe area insets (notch / home indicator) ──────────── */
-@supports(padding:env(safe-area-inset-bottom)){
-  nav[aria-label="Mobile navigation"]{
-    padding-bottom:env(safe-area-inset-bottom) !important;
-    height:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom)) !important;
-  }
-  main[aria-label="Main content"]{
-    padding-bottom:calc(
-      var(--mobile-player-h) + var(--mobile-nav-h) + env(safe-area-inset-bottom) + 16px
-    ) !important;
-  }
+/* ── Now Playing entrance ───────────────────────────────── */
+.now-playing-enter {
+  animation: slideUp .3s cubic-bezier(.32,.72,0,1) both;
 }
 
-/* ── HScroll: full-bleed with internal scroll only ──────── */
-@media(max-width:768px){
-  /* Scoped by inline style attributes set in HScroll component */
-  div[style*="gridAutoFlow"]{
-    -webkit-overflow-scrolling:touch;
-    scrollbar-width:none;
-  }
-  div[style*="gridAutoFlow"]::-webkit-scrollbar{display:none;}
+/* ── Range input global ─────────────────────────────────── */
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  background: transparent; cursor: pointer;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 4px;
+  background: rgba(255,255,255,.2);
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px; margin-top: -5px;
+  border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.4);
+}
+input[type=range]::-moz-range-track {
+  height: 4px; border-radius: 4px; background: rgba(255,255,255,.2);
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: none; background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.4);
 }
 
-/* ── Header: very small screens ─────────────────────────── */
-@media(max-width:375px){
-  header h1{
-    max-width:130px !important;
-    font-size:13px !important;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-  }
-}
+/* ── Toast ──────────────────────────────────────────────── */
+@keyframes toastIn  { from { opacity: 0; transform: translateY(16px) scale(.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes toastOut { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(8px) scale(.95); } }
 
-/* ── Mobile sidebar: max 85vw ──────────────────────────── */
-@media(max-width:768px){
-  aside[role=dialog]{
-    width:min(240px,85vw) !important;
-  }
-}
-
-/* ── Genre grid: 2 cols always on mobile ─────────────────── */
-@media(max-width:425px){
-  /* Genre buttons inside Browse Genres grid */
-  div[style*="repeat(4,1fr)"]{
-    grid-template-columns:repeat(2,1fr) !important;
-    gap:8px !important;
-  }
-}
-
-/* ── Tablet: sidebar narrower ───────────────────────────── */
-@media(min-width:769px) and (max-width:1024px){
-  aside[role=navigation]{
-    width:200px !important;
-  }
-  /* Player bar on tablet: tighten the fixed-width panels */
-  div[role=region][aria-label="Music player"] div[style*="width:270"]{
-    width:200px !important;
-  }
-  div[role=region][aria-label="Music player"] div[style*="width:250"]{
-    width:180px !important;
-  }
-}
-
-/* ── Context menu: clamp to viewport ─────────────────────── */
-@media(max-width:768px){
-  div[style*="position:fixed"][style*="minWidth:210"]{
-    max-width:calc(100vw - 24px);
-  }
-}
-
-/* ── Toaster: above player + nav on mobile ───────────────── */
-@media(max-width:768px){
-  div[style*="bottom:90"][style*="right:20"]{
-    bottom:calc(var(--mobile-player-h) + var(--mobile-nav-h) + 12px) !important;
-    right:12px !important;
-    left:12px !important;
-    align-items:stretch;
-  }
-  div[style*="bottom:90"] > div{
-    max-width:100% !important;
-  }
-}
-
-/* ── Modals: bottom-sheet on mobile ─────────────────────── */
-@media(max-width:768px){
-  /* Overlay */
-  div[style*="position:fixed"][style*="alignItems:center"][style*="padding:20"]{
-    padding:0 !important;
-    align-items:flex-end !important;
-  }
-  /* Sheet */
-  div[style*="borderRadius:20"][style*="maxWidth:380"],
-  div[style*="borderRadius:20"][style*="maxWidth:460"]{
-    border-radius:20px 20px 0 0 !important;
-    max-height:90vh;
-    overflow-y:auto;
-    width:100% !important;
-  }
-}
-
-/* ── Landscape phone ─────────────────────────────────────── */
-@media(max-height:500px) and (orientation:landscape){
-  header{padding:6px 12px !important;}
-  main[aria-label="Main content"]{padding-top:8px !important;}
-}
-
-/* ── High contrast mode ─────────────────────────────────── */
-@media(forced-colors:active){
-  button,input,a{border:1px solid ButtonText !important;}
-}
+/* ── Light theme overrides ──────────────────────────────── */
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,.25); }
