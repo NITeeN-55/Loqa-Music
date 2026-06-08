@@ -1,27 +1,31 @@
 /**
- * NowPlayingView — Full-screen "Now Playing" overlay.
+ * NowPlayingView v5.1 — Full-screen "Now Playing" overlay.
+ *
+ * FIX (v5.1): Removed createPortal entirely.
+ *   - Position: fixed + z-index:300 covers everything without needing a portal.
+ *   - Previously, rendering into the same #loqa-portals container as App.jsx's
+ *     other portals caused "insertBefore" DOM errors during concurrent unmounts.
+ *   - Exit animation now uses onAnimationEnd instead of setTimeout, so the
+ *     parent's onClose() is only called after the CSS animation actually finishes.
  *
  * Features:
- *  ✓ Dynamic background color extracted from album art
- *  ✓ Animated album art (scales up/down on play/pause)
- *  ✓ Synced + plain lyrics with auto-scroll
- *  ✓ Queue preview tab
+ *  ✓ Dynamic background color from album art (canvas pixel sampling)
+ *  ✓ Animated album art (scales on play/pause)
+ *  ✓ Synced lyrics with auto-scroll to active line
+ *  ✓ Queue preview + autoplay list
  *  ✓ Sleep timer UI
- *  ✓ Swipe-to-dismiss (down), swipe-to-skip (left/right) on mobile
- *  ✓ Accessible (focus trap, aria roles, keyboard nav)
- *  ✓ Smooth entry/exit animations
+ *  ✓ Swipe down to close / swipe left+right to skip (mobile)
+ *  ✓ ESC to close
+ *  ✓ Body scroll locked while open
  */
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { createPortal } from 'react-dom';
 import { fmtTime, gradStr } from '../utils/constants.js';
 import { Svg, I, EqBars, Spinner } from './Icons.jsx';
 import { Thumb } from './UI.jsx';
 
-const PORTAL = document.getElementById('loqa-portals') || document.body;
-
-/* ─── Color extraction from thumbnail ─────────────────────────
-   Uses a 50×50 canvas sample to find the dominant colour.
-   Returns { r, g, b } or null on failure.
+/* ─── Color extraction ───────────────────────────────────────
+   Samples a 50×50 canvas from the thumbnail to find the dominant colour.
+   Skips near-black and near-white pixels for a more vibrant result.
 ──────────────────────────────────────────────────────────── */
 async function extractDominantColor(thumbnailUrl) {
   if (!thumbnailUrl) return null;
@@ -36,81 +40,62 @@ async function extractDominantColor(thumbnailUrl) {
         ctx.drawImage(img, 0, 0, 50, 50);
         const { data } = ctx.getImageData(0, 0, 50, 50);
         let r = 0, g = 0, b = 0, n = 0;
-        // Sample every 4th pixel, skip very bright/dark pixels (near white/black)
         for (let i = 0; i < data.length; i += 16) {
-          const pr = data[i], pg = data[i+1], pb = data[i+2];
-          const brightness = (pr + pg + pb) / 3;
-          if (brightness < 30 || brightness > 225) continue;
-          r += pr; g += pg; b += pb; n++;
+          const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
+          if (brightness < 30 || brightness > 220) continue;
+          r += data[i]; g += data[i+1]; b += data[i+2]; n++;
         }
-        if (n === 0) return resolve(null);
-        resolve({ r: r/n | 0, g: g/n | 0, b: b/n | 0 });
+        resolve(n ? { r: r/n|0, g: g/n|0, b: b/n|0 } : null);
       } catch { resolve(null); }
     };
     img.onerror = () => resolve(null);
-    // Add timestamp to bypass CORS cached response
-    img.src = thumbnailUrl.includes('?') ? thumbnailUrl : `${thumbnailUrl}?_=${Date.now()}`;
+    img.src = thumbnailUrl;
   });
 }
 
-/* ─── Lyrics Panel ─────────────────────────────────────────── */
+/* ─── Lyrics panel ──────────────────────────────────────────── */
 const LyricsPanel = memo(function LyricsPanel({ lines, plainText, loading, activeIdx, color }) {
   const activeRef = useRef(null);
 
-  // Auto-scroll to active line
   useEffect(() => {
     activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [activeIdx]);
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 12, opacity: .6 }}>
-        <Spinner size={28} />
-        <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>Finding lyrics…</span>
-      </div>
-    );
-  }
-  if (!lines.length && !plainText) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 10, opacity: .5, padding: '0 24px', textAlign: 'center' }}>
-        <Svg d={I.lyrics} size={40} stroke="rgba(255,255,255,.5)" />
-        <div style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,.7)' }}>No lyrics found</div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,.4)' }}>Lyrics aren't available for this song</div>
-      </div>
-    );
-  }
-  if (plainText) {
-    return (
-      <div style={{ overflowY: 'auto', flex: 1, padding: '0 28px 80px' }}>
-        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 15, lineHeight: 1.9, color: 'rgba(255,255,255,.75)' }}>
-          {plainText}
-        </pre>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, opacity: .6 }}>
+      <Spinner size={28} />
+      <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>Finding lyrics…</span>
+    </div>
+  );
+
+  if (!lines.length && !plainText) return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: .5, padding: '0 24px', textAlign: 'center' }}>
+      <Svg d={I.lyrics} size={40} stroke="rgba(255,255,255,.5)" />
+      <div style={{ fontSize: 16, fontWeight: 700, color: 'rgba(255,255,255,.7)' }}>No lyrics found</div>
+      <div style={{ fontSize: 13, color: 'rgba(255,255,255,.4)' }}>Lyrics aren't available for this song</div>
+    </div>
+  );
+
+  if (plainText) return (
+    <div style={{ overflowY: 'auto', flex: 1, padding: '0 28px 80px' }}>
+      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 15, lineHeight: 1.9, color: 'rgba(255,255,255,.75)' }}>
+        {plainText}
+      </pre>
+    </div>
+  );
+
   return (
     <div style={{ overflowY: 'auto', flex: 1, padding: '0 28px 80px' }}>
       {lines.map((line, i) => (
-        <div
-          key={i}
-          ref={i === activeIdx ? activeRef : null}
+        <div key={i} ref={i === activeIdx ? activeRef : null}
           style={{
             fontSize: i === activeIdx ? 22 : 18,
             fontWeight: i === activeIdx ? 800 : 400,
-            lineHeight: 1.5,
-            marginBottom: 16,
-            color: i === activeIdx
-              ? '#fff'
-              : i < activeIdx
-                ? 'rgba(255,255,255,.35)'
-                : 'rgba(255,255,255,.55)',
+            lineHeight: 1.55, marginBottom: 16,
+            color: i === activeIdx ? '#fff' : i < activeIdx ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.55)',
             transition: 'all .3s ease',
-            cursor: 'default',
-            textShadow: i === activeIdx && color
-              ? `0 0 40px rgb(${color.r},${color.g},${color.b})`
-              : 'none',
-          }}
-        >
+            textShadow: i === activeIdx && color ? `0 0 40px rgb(${color.r},${color.g},${color.b})` : 'none',
+          }}>
           {line.text || '♪'}
         </div>
       ))}
@@ -118,8 +103,8 @@ const LyricsPanel = memo(function LyricsPanel({ lines, plainText, loading, activ
   );
 });
 
-/* ─── Queue Item ────────────────────────────────────────────── */
-const QueueItem = memo(function QueueItem({ song, idx, onPlay, onRemove, C }) {
+/* ─── Queue item ────────────────────────────────────────────── */
+const QueueItem = memo(function QueueItem({ song, idx, onPlay, onRemove }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,.07)' }}>
       <div style={{ width: 20, textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,.3)', flexShrink: 0 }}>{idx + 1}</div>
@@ -128,20 +113,20 @@ const QueueItem = memo(function QueueItem({ song, idx, onPlay, onRemove, C }) {
         <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</div>
         <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.artist}</div>
       </div>
-      <button onClick={() => onPlay(song, idx)}
-        style={{ background: 'rgba(255,255,255,.1)', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: '#fff', fontSize: 12, flexShrink: 0 }}>
+      <button onClick={() => onPlay(song, idx)} style={{ background: 'rgba(255,255,255,.1)', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: '#fff', fontSize: 12, flexShrink: 0, fontFamily: 'inherit' }}>
         Play
       </button>
-      <button onClick={() => onRemove(idx)}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'rgba(255,255,255,.4)', flexShrink: 0 }}>
-        <Svg d={I.close} size={14} stroke="currentColor" />
-      </button>
+      {onRemove && (
+        <button onClick={() => onRemove(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'rgba(255,255,255,.4)', flexShrink: 0 }}>
+          <Svg d={I.close} size={14} stroke="currentColor" />
+        </button>
+      )}
     </div>
   );
 });
 
-/* ─── Sleep Timer Modal ─────────────────────────────────────── */
-function SleepTimerPanel({ sleepTimer, onStart, onStop }) {
+/* ─── Sleep timer panel ─────────────────────────────────────── */
+function SleepTimerPanel({ sleepTimer }) {
   const OPTIONS = [5, 10, 15, 20, 30, 45, 60, 90];
   return (
     <div style={{ padding: '24px 28px' }}>
@@ -150,7 +135,7 @@ function SleepTimerPanel({ sleepTimer, onStart, onStop }) {
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
           <div style={{ fontSize: 48, fontWeight: 800, color: '#fff', marginBottom: 8 }}>{sleepTimer.remainingFmt}</div>
           <div style={{ fontSize: 14, color: 'rgba(255,255,255,.5)', marginBottom: 24 }}>Music stops when timer ends</div>
-          <button onClick={onStop}
+          <button onClick={sleepTimer.stop}
             style={{ background: 'rgba(255,77,109,.2)', border: '1px solid rgba(255,77,109,.4)', borderRadius: 12, padding: '12px 32px', cursor: 'pointer', color: '#ff4d6d', fontWeight: 700, fontSize: 14, fontFamily: 'inherit' }}>
             Cancel Timer
           </button>
@@ -158,7 +143,7 @@ function SleepTimerPanel({ sleepTimer, onStart, onStop }) {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
           {OPTIONS.map(min => (
-            <button key={min} onClick={() => onStart(min)}
+            <button key={min} onClick={() => sleepTimer.start(min)}
               style={{ background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.15)', borderRadius: 12, padding: '14px 8px', cursor: 'pointer', color: '#fff', fontWeight: 600, fontSize: 14, fontFamily: 'inherit', transition: 'background .15s' }}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.2)'}
               onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.1)'}>
@@ -171,44 +156,43 @@ function SleepTimerPanel({ sleepTimer, onStart, onStop }) {
   );
 }
 
-/* ─── Main NowPlayingView ───────────────────────────────────── */
+/* ─── Main component ────────────────────────────────────────── */
 export const NowPlayingView = memo(function NowPlayingView({
   C, song, playing, progress, duration, volume, muted,
-  shuffle, repeat, liked, queue, related,
-  lyrics,        // { lines, plainText, loading, activeIdx, hasLyrics }
-  sleepTimer,    // { active, remainingFmt, start, stop }
+  shuffle, repeat, liked, queue = [], related = [],
+  lyrics = { lines: [], plainText: '', loading: false, activeIdx: -1, hasLyrics: false },
+  sleepTimer = { active: false, remainingFmt: null, start: () => {}, stop: () => {} },
   onTogglePlay, onPrev, onNext, onSeek,
   onVolume, onMute, onShuffle, onRepeat,
-  onLike, onClose, onToggleQueue,
+  onLike, onClose,
   onPlayFromQueue, onRemoveFromQueue,
   isMobile,
 }) {
-  const [color, setColor]   = useState(null);
-  const [tab, setTab]       = useState('queue');      // 'queue' | 'lyrics' | 'sleep'
-  const [visible, setVisible] = useState(false);       // for entrance animation
+  const [color,   setColor]   = useState(null);
+  const [tab,     setTab]     = useState('queue');
   const [closing, setClosing] = useState(false);
-
-  // Touch gesture state
   const touchRef = useRef({ x: 0, y: 0, t: 0 });
+  const wrapRef  = useRef(null);
 
-  /* ── Entrance animation ─────────────────────────────────── */
+  /* ── Lock body scroll while open ─────────────────────────── */
   useEffect(() => {
-    requestAnimationFrame(() => setVisible(true));
-    // Lock body scroll
+    const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    return () => { document.body.style.overflow = prev; };
   }, []);
 
   /* ── Extract dominant color when song changes ─────────────── */
   useEffect(() => {
-    if (!song?.thumbnail) return;
-    extractDominantColor(song.thumbnail).then(setColor);
+    if (!song?.thumbnail) { setColor(null); return; }
+    let cancelled = false;
+    extractDominantColor(song.thumbnail).then(c => { if (!cancelled) setColor(c); });
+    return () => { cancelled = true; };
   }, [song?.thumbnail]);
 
-  /* ── Switch to lyrics tab if we have lyrics ──────────────── */
+  /* ── Open lyrics tab when lyrics arrive ───────────────────── */
   useEffect(() => {
-    if (lyrics?.hasLyrics && tab === 'queue') setTab('lyrics');
-  }, [lyrics?.hasLyrics]); // eslint-disable-line
+    if (lyrics.hasLyrics && tab === 'queue') setTab('lyrics');
+  }, [lyrics.hasLyrics]); // eslint-disable-line
 
   /* ── ESC to close ────────────────────────────────────────── */
   useEffect(() => {
@@ -217,29 +201,31 @@ export const NowPlayingView = memo(function NowPlayingView({
     return () => window.removeEventListener('keydown', h);
   }, []); // eslint-disable-line
 
-  /* ── Animated close ─────────────────────────────────────── */
+  /* ── Animated close: set closing=true, wait for animation ── */
   const handleClose = useCallback(() => {
+    if (closing) return;
     setClosing(true);
-    setTimeout(() => onClose(), 280);
-  }, [onClose]);
+    // onClose() is called via onAnimationEnd on the wrapper div — no setTimeout needed
+  }, [closing]);
 
-  /* ── Gesture handling ────────────────────────────────────── */
+  const onAnimationEnd = useCallback(() => {
+    if (closing) onClose();
+  }, [closing, onClose]);
+
+  /* ── Touch gestures ──────────────────────────────────────── */
   const onTouchStart = (e) => {
     const t = e.touches[0];
     touchRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
   };
   const onTouchEnd = (e) => {
     const { x, y, t } = touchRef.current;
-    const dx  = e.changedTouches[0].clientX - x;
-    const dy  = e.changedTouches[0].clientY - y;
-    const dt  = Date.now() - t;
-    const spd = Math.abs(dx) / dt; // px/ms
-
-    // Swipe down = close (only on the top part of screen)
-    if (dy > 100 && Math.abs(dx) < 80 && e.changedTouches[0].clientY < window.innerHeight * 0.5) {
+    const dx = e.changedTouches[0].clientX - x;
+    const dy = e.changedTouches[0].clientY - y;
+    const dt = Math.max(Date.now() - t, 1);
+    const spd = Math.abs(dx) / dt;
+    if (dy > 100 && Math.abs(dx) < 80 && e.changedTouches[0].clientY < window.innerHeight * 0.55) {
       handleClose(); return;
     }
-    // Swipe left = next, right = prev (fast swipe)
     if (spd > 0.4 && Math.abs(dy) < 80 && Math.abs(dx) > 50) {
       dx < 0 ? onNext() : onPrev();
     }
@@ -253,64 +239,74 @@ export const NowPlayingView = memo(function NowPlayingView({
 
   const allQueue = [...queue, ...related.slice(0, 10)];
 
-  return createPortal(
+  return (
     <div
+      ref={wrapRef}
       aria-modal="true"
       role="dialog"
       aria-label="Now Playing"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
+      onAnimationEnd={onAnimationEnd}
       style={{
-        position: 'fixed', inset: 0, zIndex: 300,
+        /* ── Position: fixed covers everything, no portal needed ── */
+        position: 'fixed', inset: 0,
+        zIndex: 300,
         background: bg,
-        display: 'flex', flexDirection: 'column',
+        display: 'flex',
+        flexDirection: 'column',
         overflowY: 'hidden',
-        transform: closing ? 'translateY(100%)' : visible ? 'translateY(0)' : 'translateY(100%)',
-        transition: 'transform .3s cubic-bezier(.32,.72,0,1)',
-        willChange: 'transform',
+        animationName: closing ? 'npSlideDown' : 'npSlideUp',
+        animationDuration: closing ? '280ms' : '300ms',
+        animationTimingFunction: 'cubic-bezier(.32,.72,0,1)',
+        animationFillMode: 'both',
       }}
     >
-      {/* ── Ambient glow layer ─────────────────────────────── */}
+      {/* CSS for slide animations — injected inline once */}
+      <style>{`
+        @keyframes npSlideUp   { from { transform: translateY(100%) } to { transform: translateY(0) } }
+        @keyframes npSlideDown { from { transform: translateY(0) }    to { transform: translateY(100%) } }
+      `}</style>
+
+      {/* Ambient glow */}
       {color && (
         <div aria-hidden="true" style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
-          background: `radial-gradient(ellipse 70% 40% at 50% 0%, rgba(${color.r},${color.g},${color.b},.25) 0%, transparent 70%)`,
+          background: `radial-gradient(ellipse 70% 40% at 50% 0%, rgba(${color.r},${color.g},${color.b},.22) 0%, transparent 70%)`,
         }} />
       )}
 
-      {/* ── Header ────────────────────────────────────────── */}
+      {/* ── Header ──────────────────────────────────────────── */}
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 8px', flexShrink: 0 }}>
-        <button onClick={handleClose} aria-label="Minimize player"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.7)', padding: 8, borderRadius: 8 }}>
+        <button onClick={handleClose} aria-label="Minimise player"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.7)', padding: 8, borderRadius: 8, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Svg d="M19 9l-7 7-7-7" size={22} stroke="currentColor" strokeWidth={2.5} />
         </button>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,.5)' }}>
-            {song.source === 'autoplay' ? 'Autoplay' : song.source === 'recommendations' ? 'Recommended' : 'Now Playing'}
+            Now Playing
           </div>
           {sleepTimer.active && (
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', marginTop: 2 }}>
-              ⏰ {sleepTimer.remainingFmt}
-            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', marginTop: 2 }}>⏰ {sleepTimer.remainingFmt}</div>
           )}
         </div>
-        <button onClick={() => setTab(tab === 'sleep' ? 'queue' : 'sleep')} aria-label="Sleep timer"
-          style={{ background: sleepTimer.active ? 'rgba(255,255,255,.15)' : 'none', border: 'none', cursor: 'pointer', color: sleepTimer.active ? '#fff' : 'rgba(255,255,255,.7)', padding: 8, borderRadius: 8, fontSize: 18, lineHeight: 1 }}>
+        <button onClick={() => setTab(t => t === 'sleep' ? 'queue' : 'sleep')} aria-label="Sleep timer"
+          style={{ background: sleepTimer.active ? 'rgba(255,255,255,.15)' : 'none', border: 'none', cursor: 'pointer', color: sleepTimer.active ? '#fff' : 'rgba(255,255,255,.7)', padding: 8, borderRadius: 8, fontSize: 18, lineHeight: 1, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           ⏰
         </button>
       </div>
 
-      {/* ── Main content (art + info + controls) + side panel ── */}
+      {/* ── Body ─────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
 
         {/* ── LEFT: Art + Controls ─────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', width: isMobile ? '100%' : 400, flexShrink: 0 }}>
 
-          {/* Album Art */}
+          {/* Album art */}
           <div style={{ display: 'flex', justifyContent: 'center', padding: isMobile ? '8px 48px 16px' : '8px 40px 20px', flexShrink: 0 }}>
             <div style={{
-              width: '100%', maxWidth: isMobile ? 320 : 340,
-              aspectRatio: '1', borderRadius: 20, overflow: 'hidden',
+              width: '100%', maxWidth: isMobile ? 300 : 340, aspectRatio: '1',
+              borderRadius: 20, overflow: 'hidden',
               boxShadow: color
                 ? `0 32px 80px rgba(${color.r},${color.g},${color.b},.4), 0 8px 32px rgba(0,0,0,.6)`
                 : '0 24px 60px rgba(0,0,0,.5)',
@@ -321,50 +317,26 @@ export const NowPlayingView = memo(function NowPlayingView({
             </div>
           </div>
 
-          {/* Song Info + Like */}
+          {/* Song info + like */}
           <div style={{ padding: '0 28px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: isMobile ? 22 : 24, fontWeight: 800, color: '#fff', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-.01em' }}>
-                {song.title}
-              </div>
-              <div style={{ fontSize: 15, color: 'rgba(255,255,255,.65)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {song.artist}
-              </div>
+              <div style={{ fontSize: isMobile ? 21 : 24, fontWeight: 800, color: '#fff', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</div>
+              <div style={{ fontSize: 15, color: 'rgba(255,255,255,.65)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.artist}</div>
             </div>
-            <button onClick={() => onLike(song.id)}
-              aria-label={liked ? 'Remove from liked songs' : 'Add to liked songs'}
-              aria-pressed={liked}
+            <button onClick={() => onLike(song.id)} aria-label={liked ? 'Unlike' : 'Like'} aria-pressed={liked}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, flexShrink: 0, marginLeft: 12, transition: 'transform .2s' }}
               onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
               onMouseLeave={e => e.currentTarget.style.transform = ''}>
-              <Svg d={I.heart} size={26}
-                fill={liked ? '#ff6b9d' : 'none'}
-                stroke={liked ? '#ff6b9d' : 'rgba(255,255,255,.7)'}
-                strokeWidth={liked ? 0 : 1.75} />
+              <Svg d={I.heart} size={26} fill={liked ? '#ff6b9d' : 'none'} stroke={liked ? '#ff6b9d' : 'rgba(255,255,255,.7)'} strokeWidth={liked ? 0 : 1.75} />
             </button>
           </div>
 
           {/* Progress bar */}
           <div style={{ padding: '20px 28px 0', flexShrink: 0 }}>
             <div style={{ position: 'relative', height: 4, borderRadius: 2, background: 'rgba(255,255,255,.2)', cursor: 'pointer' }}
-              onClick={e => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                onSeek(((e.clientX - rect.left) / rect.width) * 100);
-              }}>
-              <div style={{
-                height: '100%', borderRadius: 2,
-                background: '#fff',
-                width: `${progress}%`,
-                transition: 'width .5s linear',
-                boxShadow: color ? `0 0 12px rgba(${color.r},${color.g},${color.b},.8)` : 'none',
-              }} />
-              {/* Thumb */}
-              <div style={{
-                position: 'absolute', top: '50%', left: `${progress}%`,
-                transform: 'translate(-50%, -50%)',
-                width: 14, height: 14, borderRadius: '50%',
-                background: '#fff', boxShadow: '0 1px 6px rgba(0,0,0,.4)',
-              }} />
+              onClick={e => { const rect = e.currentTarget.getBoundingClientRect(); onSeek(((e.clientX - rect.left) / rect.width) * 100); }}>
+              <div style={{ height: '100%', borderRadius: 2, background: '#fff', width: `${progress}%`, transition: 'width .5s linear', boxShadow: color ? `0 0 12px rgba(${color.r},${color.g},${color.b},.8)` : 'none' }} />
+              <div style={{ position: 'absolute', top: '50%', left: `${progress}%`, transform: 'translate(-50%,-50%)', width: 14, height: 14, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 6px rgba(0,0,0,.4)' }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,.45)', fontVariantNumeric: 'tabular-nums' }}>
               <span>{fmtTime((progress / 100) * (duration || 0))}</span>
@@ -379,28 +351,18 @@ export const NowPlayingView = memo(function NowPlayingView({
               <Svg d={I.shuffle} size={20} stroke="currentColor" />
               {shuffle && <div style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', width: 4, height: 4, borderRadius: '50%', background: '#fff' }} />}
             </button>
-            <button onClick={onPrev} aria-label="Previous song"
+            <button onClick={onPrev} aria-label="Previous"
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 10, opacity: .85 }}>
               <Svg d={I.prev} size={32} fill="currentColor" stroke="currentColor" />
             </button>
             <button onClick={onTogglePlay} aria-label={playing ? 'Pause' : 'Play'}
-              style={{
-                width: 70, height: 70, borderRadius: '50%',
-                background: '#fff',
-                border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-                boxShadow: color
-                  ? `0 8px 32px rgba(${color.r},${color.g},${color.b},.5), 0 2px 12px rgba(0,0,0,.4)`
-                  : '0 8px 32px rgba(0,0,0,.4)',
-                transition: 'transform .15s, box-shadow .3s',
-              }}
+              style={{ width: 70, height: 70, borderRadius: '50%', background: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: color ? `0 8px 32px rgba(${color.r},${color.g},${color.b},.5),0 2px 12px rgba(0,0,0,.4)` : '0 8px 32px rgba(0,0,0,.4)', transition: 'transform .15s' }}
               onMouseDown={e => e.currentTarget.style.transform = 'scale(.93)'}
-              onMouseUp={e   => e.currentTarget.style.transform = ''}
+              onMouseUp={e => e.currentTarget.style.transform = ''}
               onMouseLeave={e => e.currentTarget.style.transform = ''}>
               <Svg d={playing ? I.pause : I.play} size={24} fill="#111" stroke="#111" />
             </button>
-            <button onClick={onNext} aria-label="Next song"
+            <button onClick={onNext} aria-label="Next"
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 10, opacity: .85 }}>
               <Svg d={I.next} size={32} fill="currentColor" stroke="currentColor" />
             </button>
@@ -411,28 +373,24 @@ export const NowPlayingView = memo(function NowPlayingView({
             </button>
           </div>
 
-          {/* Volume row */}
+          {/* Volume (desktop only) */}
           {!isMobile && (
             <div style={{ padding: '0 28px 16px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
               <button onClick={onMute} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.5)', padding: 4 }}>
                 <Svg d={muted || volume === 0 ? I.volX : volume < 50 ? I.volLow : I.volHigh} size={16} stroke="currentColor" />
               </button>
               <input type="range" min={0} max={100} value={muted ? 0 : volume}
-                onChange={e => onVolume(Number(e.target.value))}
-                aria-label="Volume"
+                onChange={e => onVolume(Number(e.target.value))} aria-label="Volume"
                 style={{ flex: 1, accentColor: color ? `rgb(${color.r},${color.g},${color.b})` : '#fff', cursor: 'pointer' }} />
             </div>
           )}
 
-          {/* Tab bar (mobile: show below controls) */}
+          {/* Tab bar (mobile) */}
           {isMobile && (
             <div style={{ display: 'flex', borderTop: '1px solid rgba(255,255,255,.1)', flexShrink: 0 }}>
-              {[['queue','Queue',I.queue], ['lyrics','Lyrics',I.lyrics], ['sleep','Timer','⏰']].map(([id, label, icon]) => (
+              {[['queue','Queue',I.queue],['lyrics','Lyrics',I.lyrics],['sleep','Timer','⏰']].map(([id, label, icon]) => (
                 <button key={id} onClick={() => setTab(id)}
-                  style={{ flex: 1, padding: '12px 8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                    color: tab === id ? '#fff' : 'rgba(255,255,255,.4)',
-                    borderBottom: tab === id ? '2px solid #fff' : '2px solid transparent',
-                    fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                  style={{ flex: 1, padding: '12px 8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: tab === id ? '#fff' : 'rgba(255,255,255,.4)', borderBottom: tab === id ? '2px solid #fff' : '2px solid transparent', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                   {typeof icon === 'string' ? <span>{icon}</span> : <Svg d={icon} size={13} stroke="currentColor" />}
                   {label}
                 </button>
@@ -441,32 +399,21 @@ export const NowPlayingView = memo(function NowPlayingView({
           )}
         </div>
 
-        {/* ── RIGHT: Queue / Lyrics / Sleep panel ─────────── */}
+        {/* ── RIGHT: Tabs (desktop tab bar + content) ────────── */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-          {/* Desktop tab bar */}
           {!isMobile && (
             <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,.1)', padding: '0 28px', flexShrink: 0 }}>
-              {[['queue','Queue'], ['lyrics','Lyrics'], ['sleep','Sleep Timer']].map(([id, label]) => (
+              {[['queue','Queue'],['lyrics','Lyrics'],['sleep','Sleep Timer']].map(([id, label]) => (
                 <button key={id} onClick={() => setTab(id)}
-                  style={{ padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
-                    color: tab === id ? '#fff' : 'rgba(255,255,255,.4)',
-                    borderBottom: tab === id ? '2px solid #fff' : '2px solid transparent',
-                    fontFamily: 'inherit', transition: 'color .15s' }}>
+                  style={{ padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: tab === id ? '#fff' : 'rgba(255,255,255,.4)', borderBottom: tab === id ? '2px solid #fff' : '2px solid transparent', fontFamily: 'inherit', transition: 'color .15s' }}>
                   {label}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Tab content */}
           {tab === 'lyrics' && (
-            <LyricsPanel
-              lines={lyrics.lines}
-              plainText={lyrics.plainText}
-              loading={lyrics.loading}
-              activeIdx={lyrics.activeIdx}
-              color={color}
-            />
+            <LyricsPanel lines={lyrics.lines} plainText={lyrics.plainText} loading={lyrics.loading} activeIdx={lyrics.activeIdx} color={color} />
           )}
 
           {tab === 'queue' && (
@@ -480,35 +427,18 @@ export const NowPlayingView = memo(function NowPlayingView({
               ) : (
                 <>
                   {queue.length > 0 && <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.35)', padding: '16px 0 8px' }}>Next in Queue</div>}
-                  {queue.map((s, i) => (
-                    <QueueItem key={`q-${s.id}-${i}`} song={s} idx={i}
-                      onPlay={() => onPlayFromQueue(s, i)}
-                      onRemove={() => onRemoveFromQueue(i)}
-                      C={C} />
-                  ))}
+                  {queue.map((s, i) => <QueueItem key={`q-${s.id}-${i}`} song={s} idx={i} onPlay={() => onPlayFromQueue(s, i)} onRemove={() => onRemoveFromQueue(i)} />)}
                   {related.length > 0 && <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.35)', padding: '16px 0 8px' }}>Autoplay</div>}
-                  {related.slice(0, 10).map((s, i) => (
-                    <QueueItem key={`r-${s.id}-${i}`} song={s} idx={queue.length + i}
-                      onPlay={() => onPlayFromQueue(s, queue.length + i)}
-                      onRemove={() => {}}
-                      C={C} />
-                  ))}
+                  {related.slice(0, 10).map((s, i) => <QueueItem key={`r-${s.id}-${i}`} song={s} idx={queue.length + i} onPlay={() => onPlayFromQueue(s, queue.length + i)} onRemove={null} />)}
                 </>
               )}
             </div>
           )}
 
-          {tab === 'sleep' && (
-            <SleepTimerPanel
-              sleepTimer={sleepTimer}
-              onStart={sleepTimer.start}
-              onStop={sleepTimer.stop}
-            />
-          )}
+          {tab === 'sleep' && <SleepTimerPanel sleepTimer={sleepTimer} />}
         </div>
       </div>
-    </div>,
-    PORTAL
+    </div>
   );
 });
 
