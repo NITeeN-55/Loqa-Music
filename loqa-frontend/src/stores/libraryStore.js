@@ -1,71 +1,57 @@
 /**
- * libraryStore v5 — playlists, likes, history, search history.
+ * libraryStore v5
  *
- * CHANGES v5:
- *  - Token sourced from authStore.getState() instead of direct localStorage read
- *  - Search history persisted to localStorage (max 10 entries)
- *  - syncFromServer caches full song objects for NowPlayingView / Continue Listening
+ * Changes vs v4:
+ *  - searchHistory persisted to localStorage (max 10 entries)
+ *  - recentSongs: full song objects for "Continue Listening" on Home
+ *  - cacheSong() called on every synced song so NowPlayingView can look them up
  */
 import { create } from 'zustand';
 import { loadLS, saveLS, cacheSong } from '../utils/constants.js';
 import { apiFetch } from '../utils/api.js';
 import { _regAddRecent } from './playerStore.js';
 
-/* ── Get auth headers — always from authStore to stay in sync ── */
+/* ── Auth headers — read from localStorage (same as original) ── */
 function getHeaders() {
-  // Dynamic import avoids circular dep; authStore is always initialized before libraryStore
   try {
-    const { default: useAuthStore } = require('../stores/authStore.js'); // eslint-disable-line
-    return useAuthStore.getState().headers();
-  } catch {
-    // Fallback for SSR or test environments
-    const token = loadLS().token;
+    const token = JSON.parse(localStorage.getItem('lm2'))?.token;
     return token
       ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
       : { 'Content-Type': 'application/json' };
-  }
+  } catch { return { 'Content-Type': 'application/json' }; }
 }
 
-// Since require() isn't available in ESM, use a lazy getter approach
-let _authStore = null;
-async function ensureAuthStore() {
-  if (_authStore) return _authStore;
-  const m = await import('./authStore.js');
-  _authStore = m.default;
-  return _authStore;
+/* ── Search history helpers ────────────────────────────────── */
+const MAX_SEARCH_HIST = 10;
+const HIST_KEY = 'lm_search_hist';
+function loadSearchHistory() {
+  try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch { return []; }
 }
-async function getHeadersAsync() {
-  const store = await ensureAuthStore();
-  return store.getState().headers();
+function saveSearchHistory(arr) {
+  try { localStorage.setItem(HIST_KEY, JSON.stringify(arr)); } catch {}
 }
 
 const saved = loadLS();
 
-/* ── Search history helpers ────────────────────────────────── */
-const MAX_SEARCH_HISTORY = 10;
-function loadSearchHistory() { try { return JSON.parse(localStorage.getItem('lm_search_hist')) || []; } catch { return []; } }
-function saveSearchHistory(arr) { try { localStorage.setItem('lm_search_hist', JSON.stringify(arr)); } catch {} }
-
 const useLibraryStore = create((set, get) => ({
-  // Seed from localStorage so UI is never blank while server syncs
-  playlists:     saved.playlists    || [],
-  liked:         saved.liked        || [],   // array of song IDs
-  recent:        saved.recent       || [],   // array of song IDs (play history)
-  recentSongs:   [],                         // full song objects for Continue Listening
-  searchHistory: loadSearchHistory(),        // array of search query strings
+  /* Seed from localStorage so the UI is instant while server syncs */
+  playlists:     saved.playlists || [],
+  liked:         saved.liked     || [],   // array of song IDs
+  recent:        saved.recent    || [],   // array of song IDs (play history)
+  recentSongs:   [],                      // full song objects for Continue Listening
+  searchHistory: loadSearchHistory(),
   synced:        false,
   syncing:       false,
 
-  /* ── Full sync from server ──────────────────────────────── */
+  /* ── Sync from server ───────────────────────────────────── */
   syncFromServer: async () => {
     set({ syncing: true });
     try {
-      const headers = await getHeadersAsync();
-      const r = await apiFetch('/api/library', { headers });
+      const r = await apiFetch('/api/library', { headers: getHeaders() });
       if (!r.ok) { set({ syncing: false }); return; }
       const d = await r.json();
 
-      // Cache all known song objects
+      /* Cache every song object for getCachedSong() lookups */
       d.liked.forEach(s => cacheSong(s));
       d.history.forEach(s => cacheSong(s));
 
@@ -80,7 +66,6 @@ const useLibraryStore = create((set, get) => ({
         synced:      true,
         syncing:     false,
       });
-
       saveLS({ ...loadLS(), playlists: d.playlists, liked: likedIds, recent: recentIds });
     } catch (e) {
       console.warn('[Library] sync failed:', e.message);
@@ -88,59 +73,66 @@ const useLibraryStore = create((set, get) => ({
     }
   },
 
-  /* ── Record a play ──────────────────────────────────────── */
+  /* ── addRecent (called by playerStore via _regAddRecent) ── */
+  addRecent: (id) => {
+    if (!id) return;
+    set(s => {
+      const recent = [id, ...s.recent.filter(x => x !== id)].slice(0, 50);
+      saveLS({ ...loadLS(), recent });
+      return { recent };
+    });
+  },
+
+  /* ── Record a play (optimistic + server) ────────────────── */
   recordPlay: async (song) => {
     if (!song?.id) return;
-    // Optimistic update: add to front of recent
+    /* Optimistic: put this song at the front of recentSongs */
     set(s => {
-      const newRecent = [song.id, ...s.recent.filter(id => id !== song.id)].slice(0, 50);
-      const newSongs  = [song, ...s.recentSongs.filter(x => x.id !== song.id)].slice(0, 12);
-      saveLS({ ...loadLS(), recent: newRecent });
-      return { recent: newRecent, recentSongs: newSongs };
+      const recent    = [song.id, ...s.recent.filter(id => id !== song.id)].slice(0, 50);
+      const recentSongs = [song, ...s.recentSongs.filter(x => x.id !== song.id)].slice(0, 12);
+      saveLS({ ...loadLS(), recent });
+      return { recent, recentSongs };
     });
     try {
-      const headers = await getHeadersAsync();
       await apiFetch('/api/library/history', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ id: song.id, title: song.title, artist: song.artist, thumbnail: song.thumbnail, dur: song.dur }),
+        method: 'POST', headers: getHeaders(),
+        body: JSON.stringify({
+          id: song.id, title: song.title,
+          artist: song.artist, thumbnail: song.thumbnail, dur: song.dur,
+        }),
       });
     } catch {}
   },
 
-  /* ── Toggle like ────────────────────────────────────────── */
+  /* ── Toggle like ─────────────────────────────────────────── */
   toggleLike: async (song) => {
     const { liked } = get();
-    const id        = song?.id;
+    const id = song?.id;
     if (!id) return null;
-    const wasLiked  = liked.includes(id);
+    const wasLiked = liked.includes(id);
 
-    // Optimistic update
     set({ liked: wasLiked ? liked.filter(x => x !== id) : [id, ...liked] });
     saveLS({ ...loadLS(), liked: get().liked });
 
     try {
-      const headers = await getHeadersAsync();
       const r = await apiFetch('/api/library/likes', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ id: song.id, title: song.title, artist: song.artist, thumbnail: song.thumbnail, dur: song.dur }),
+        method: 'POST', headers: getHeaders(),
+        body: JSON.stringify({
+          id: song.id, title: song.title,
+          artist: song.artist, thumbnail: song.thumbnail, dur: song.dur,
+        }),
       });
-      if (r.ok) {
-        const d = await r.json();
-        return d.liked; // true = now liked, false = unliked
-      }
+      if (r.ok) { const d = await r.json(); return d.liked; }
     } catch {}
-    // Rollback on failure
+    /* Rollback on failure */
     set({ liked: wasLiked ? [...liked] : liked.filter(x => x !== id) });
     return null;
   },
 
   /* ── Create playlist ─────────────────────────────────────── */
   createPlaylist: async (name, desc = '') => {
-    const headers = await getHeadersAsync();
     const r = await apiFetch('/api/library/playlists', {
-      method: 'POST', headers,
+      method: 'POST', headers: getHeaders(),
       body: JSON.stringify({ name, desc, ci: Math.floor(Math.random() * 8) }),
     });
     if (r.ok) {
@@ -154,11 +146,10 @@ const useLibraryStore = create((set, get) => ({
     }
   },
 
-  /* ── Edit playlist ────────────────────────────────────────── */
+  /* ── Edit playlist ───────────────────────────────────────── */
   editPlaylist: async (id, name, desc) => {
-    const headers = await getHeadersAsync();
     await apiFetch(`/api/library/playlists/${id}`, {
-      method: 'PUT', headers,
+      method: 'PUT', headers: getHeaders(),
       body: JSON.stringify({ name, desc }),
     });
     set(s => {
@@ -170,8 +161,7 @@ const useLibraryStore = create((set, get) => ({
 
   /* ── Delete playlist ─────────────────────────────────────── */
   deletePlaylist: async (id) => {
-    const headers = await getHeadersAsync();
-    await apiFetch(`/api/library/playlists/${id}`, { method: 'DELETE', headers });
+    await apiFetch(`/api/library/playlists/${id}`, { method: 'DELETE', headers: getHeaders() });
     set(s => {
       const playlists = s.playlists.filter(p => p.id !== id);
       saveLS({ ...loadLS(), playlists });
@@ -181,10 +171,12 @@ const useLibraryStore = create((set, get) => ({
 
   /* ── Add song to playlist ────────────────────────────────── */
   addToPlaylist: async (song, playlistId) => {
-    const headers = await getHeadersAsync();
     const r = await apiFetch(`/api/library/playlists/${playlistId}/songs`, {
-      method: 'POST', headers,
-      body: JSON.stringify({ id: song.id, title: song.title, artist: song.artist, thumbnail: song.thumbnail, dur: song.dur }),
+      method: 'POST', headers: getHeaders(),
+      body: JSON.stringify({
+        id: song.id, title: song.title,
+        artist: song.artist, thumbnail: song.thumbnail, dur: song.dur,
+      }),
     });
     if (r.ok) {
       set(s => {
@@ -202,8 +194,9 @@ const useLibraryStore = create((set, get) => ({
 
   /* ── Remove song from playlist ──────────────────────────── */
   removeFromPlaylist: async (songId, playlistId) => {
-    const headers = await getHeadersAsync();
-    await apiFetch(`/api/library/playlists/${playlistId}/songs/${songId}`, { method: 'DELETE', headers });
+    await apiFetch(`/api/library/playlists/${playlistId}/songs/${songId}`, {
+      method: 'DELETE', headers: getHeaders(),
+    });
     set(s => {
       const playlists = s.playlists.map(p =>
         p.id === playlistId ? { ...p, songs: p.songs.filter(id => id !== songId) } : p
@@ -213,11 +206,12 @@ const useLibraryStore = create((set, get) => ({
     });
   },
 
-  /* ── Search history ─────────────────────────────────────── */
+  /* ── Search history ──────────────────────────────────────── */
   addSearchHistory: (query) => {
     if (!query?.trim()) return;
     set(s => {
-      const arr = [query.trim(), ...s.searchHistory.filter(q => q !== query.trim())].slice(0, MAX_SEARCH_HISTORY);
+      const arr = [query.trim(), ...s.searchHistory.filter(q => q !== query.trim())]
+        .slice(0, MAX_SEARCH_HIST);
       saveSearchHistory(arr);
       return { searchHistory: arr };
     });
@@ -228,10 +222,7 @@ const useLibraryStore = create((set, get) => ({
   },
 }));
 
-/* ── Register addRecent for playerStore ────────────────────── */
-_regAddRecent((id) => {
-  const store = useLibraryStore.getState();
-  store.recent;  // touch to ensure hydration
-});
+/* ── Register addRecent with playerStore ── */
+_regAddRecent(useLibraryStore.getState().addRecent);
 
 export default useLibraryStore;
