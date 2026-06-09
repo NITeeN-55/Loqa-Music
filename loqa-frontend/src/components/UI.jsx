@@ -86,7 +86,7 @@ export const SongRow = memo(function SongRow({song,idx,current,playing,liked,onP
       </div>
     </div>
   );
-}
+});
 
 /* ── SongCard (grid card) ──────────────────────────────── */
 export const SongCard = memo(function SongCard({song,current,playing,liked,onPlay,onLike,onCtx,C}){
@@ -124,7 +124,7 @@ export const SongCard = memo(function SongCard({song,current,playing,liked,onPla
       </div>
     </div>
   );
-}
+});
 
 /* ── Section ───────────────────────────────────────────── */
 export function Section({title,action,onAction,children,C}){
