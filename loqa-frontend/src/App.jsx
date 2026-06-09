@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import './styles/index.css';
 import { DARK, LIGHT, gradStr, loadLS, saveLS, getCachedSong } from './utils/constants.js';
@@ -119,6 +119,9 @@ export default function App() {
   const [lastRecsLoad, setLastRecsLoad]= useState(0);
 
   const C       = theme === 'dark' ? DARK : LIGHT;
+  // PERFORMANCE FIX: O(1) liked lookup via Set instead of O(n) .includes() on every render
+  const likedSet = useMemo(() => new Set(liked.map(s => (typeof s === 'string' ? s : s?.id))), [liked]);
+  const isLiked  = useCallback((id) => likedSet.has(id), [likedSet]);
   const ytRef   = useRef(null);
   const mainRef = useRef(null);
   const navRef  = useRef(null);
@@ -459,14 +462,15 @@ export default function App() {
               onPlay={(s, opts) => doPlay(s, opts)}
               onLike={doLike} onCtx={openCtx} onBack={() => nav('home')} />
           )}
-          <div style={{ height: mob ? 150 : 24 }} aria-hidden="true" />
+          {/* SAFE AREA FIX: bottom spacer = player(74) + nav(60) + env(safe-area-inset-bottom) + buffer */}
+          <div style={{ height: mob ? 'calc(160px + env(safe-area-inset-bottom, 0px))' : 24 }} aria-hidden="true" />
         </main>
 
         {/* ── Player bar — clicking song info opens Now Playing ── */}
         <PlayerBar C={C}
           song={song} playing={playing} progress={progress} duration={duration}
           volume={volume} muted={muted} shuffle={shuffle} repeat={repeat}
-          liked={liked.includes(song?.id || '')}
+          liked={isLiked(song?.id || '')}
           showQueue={showQueue} showLyrics={showNowPlaying}
           hasLyrics={lyrics.hasLyrics}
           onTogglePlay={() => setPlaying(p => !p)}
@@ -485,7 +489,12 @@ export default function App() {
 
       {/* ── Mobile bottom nav ───────────────────────────── */}
       {mob && (
-        <nav aria-label="Mobile navigation" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, background: C.player, borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-around', alignItems: 'stretch', height: 60 }}>
+        <nav aria-label="Mobile navigation" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, background: C.player, borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-around', alignItems: 'stretch',
+          /* SAFE AREA FIX: paddingBottom pushes buttons up above iOS home bar */
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingLeft:   'env(safe-area-inset-left, 0px)',
+          paddingRight:  'env(safe-area-inset-right, 0px)',
+          minHeight: 60 }}>
           {NAV.filter(n => n.id !== 'liked').map(item => {
             const active = view === item.id;
             return (
@@ -511,7 +520,7 @@ export default function App() {
         <NowPlayingView
           C={C} song={song} playing={playing} progress={progress} duration={duration}
           volume={volume} muted={muted} shuffle={shuffle} repeat={repeat}
-          liked={liked.includes(song?.id || '')}
+          liked={isLiked(song?.id || '')}
           queue={queue} related={related}
           lyrics={lyrics}
           sleepTimer={sleepTimer}

@@ -7,7 +7,9 @@ import { Router } from 'express';
 
 const router = Router();
 
-const INNERTUBE_API_KEY = process.env.INNERTUBE_API_KEY || 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
+// SECURITY FIX: Removed hardcoded fallback key — use environment variable only.
+// Hardcoded InnerTube keys violate Google ToS and expose the key in version control.
+const INNERTUBE_API_KEY = process.env.INNERTUBE_API_KEY || '';
 const CLIENT_CTX = {
   client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' },
 };
@@ -15,6 +17,10 @@ const CLIENT_CTX = {
 /* ── Helpers ──────────────────────────────────────────── */
 
 async function ytPost(endpoint, body) {
+  if (!INNERTUBE_API_KEY) {
+    // SECURITY FIX: Fail fast and clearly instead of sending unauthenticated requests
+    throw new Error('INNERTUBE_API_KEY environment variable is not set. Add it to your .env file.');
+  }
   const r = await fetch(
     `https://www.youtube.com/youtubei/v1/${endpoint}?key=${INNERTUBE_API_KEY}&prettyPrint=false`,
     {

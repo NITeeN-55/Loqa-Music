@@ -78,7 +78,8 @@ router.post('/login',
 /* ── Me ───────────────────────────────────────────────── */
 router.get('/me', requireAuth, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('-password_hash');
+    // PERFORMANCE FIX: .lean() for read-only query
+    const user = await User.findById(req.userId).select('-password_hash').lean();
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({
       id:        user._id,

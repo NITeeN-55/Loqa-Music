@@ -6,13 +6,23 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 router.use(requireAuth);
 
+/* SECURITY FIX: Validate that thumbnail URLs only use http/https schemes.
+   This prevents javascript: URL injection via song_thumb field. */
+function safeThumbUrl(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  try {
+    const u = new URL(raw);
+    return (u.protocol === 'http:' || u.protocol === 'https:') ? raw : '';
+  } catch { return ''; }
+}
+
 /* Helper: normalise song fields from request body */
 const songFields = (s) => ({
   song_id:     s.id     || s.song_id     || '',
   song_title:  s.title  || s.song_title  || 'Unknown',
   song_artist: s.artist || s.song_artist || 'Unknown',
-  song_thumb:  s.thumbnail || s.thumb || s.song_thumb || '',
-  song_dur:    s.dur    || s.song_dur    || 0,
+  song_thumb:  safeThumbUrl(s.thumbnail || s.thumb || s.song_thumb || ''),
+  song_dur:    Number(s.dur || s.song_dur) || 0,
 });
 
 /* Helper: silently cache a song (best-effort) */
@@ -26,10 +36,11 @@ const cacheS = (sf) =>
 /* ── Full library snapshot ────────────────────────────── */
 router.get('/', async (req, res) => {
   try {
+    // PERFORMANCE FIX: .lean() returns plain JS objects (2× less memory than Mongoose docs)
     const [playlists, liked, history] = await Promise.all([
-      Playlist.find({ user_id: req.userId }).sort({ created_at: -1 }),
-      LikedSong.find({ user_id: req.userId }).sort({ liked_at: -1 }),
-      PlayHistory.find({ user_id: req.userId }).sort({ played_at: -1 }).limit(50),
+      Playlist.find({ user_id: req.userId }).sort({ created_at: -1 }).lean(),
+      LikedSong.find({ user_id: req.userId }).sort({ liked_at: -1 }).lean(),
+      PlayHistory.find({ user_id: req.userId }).sort({ played_at: -1 }).limit(50).lean(),
     ]);
 
     res.json({
@@ -39,7 +50,7 @@ router.get('/', async (req, res) => {
         desc:      p.description,
         ci:        p.ci,
         createdAt: p.created_at,
-        songs:     p.songs.map(s => s.song_id),
+        songs:     (p.songs || []).map(s => s.song_id),
       })),
       liked: liked.map(l => ({
         id: l.song_id, title: l.song_title, artist: l.song_artist, thumbnail: l.song_thumb, dur: l.song_dur,
@@ -138,7 +149,8 @@ router.post('/likes', async (req, res) => {
 });
 
 router.get('/likes', async (req, res) => {
-  const rows = await LikedSong.find({ user_id: req.userId }).sort({ liked_at: -1 });
+  // PERFORMANCE FIX: .lean() returns plain JS objects
+  const rows = await LikedSong.find({ user_id: req.userId }).sort({ liked_at: -1 }).lean();
   res.json(rows.map(l => ({
     id: l.song_id, title: l.song_title, artist: l.song_artist, thumbnail: l.song_thumb, dur: l.song_dur,
   })));

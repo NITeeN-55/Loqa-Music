@@ -219,6 +219,10 @@ export function QueuePanel({ C, queue, related, song: cur, playing, onPlay, onRe
         zIndex: 200, display: 'flex', flexDirection: 'column',
         boxShadow: '-8px 0 32px rgba(0,0,0,.4)',
         animation: 'fadeIn .2s ease',
+        // SAFE AREA FIX: account for notch (right side) and home bar
+        paddingTop:    'env(safe-area-inset-top, 0px)',
+        paddingRight:  'env(safe-area-inset-right, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         // FIX: overflow guard
         overflowX: 'hidden',
       }}>
@@ -593,12 +597,16 @@ export function SettingsModal({ C, settings, onSave, onClose, user }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: C.overlay, zIndex: 500,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      // SAFE AREA FIX: on mobile use bottom-sheet (align to bottom, respects home bar)
+      padding: 16 }}
       onClick={onClose}>
       <div ref={ref}
         style={{ background: C.surface, borderRadius: 20, padding: 28, width: '100%', maxWidth: 460,
           border: `1px solid ${C.border}`, boxShadow: '0 40px 80px rgba(0,0,0,.5)',
-          maxHeight: '90vh', overflowY: 'auto', animation: 'fadeUp .2s ease',
+          // SAFE AREA FIX: max-height accounts for notch + home bar
+          maxHeight: 'calc(90vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))',
+          overflowY: 'auto', animation: 'fadeUp .2s ease',
           // FIX: full width on mobile
           boxSizing: 'border-box',
         }}

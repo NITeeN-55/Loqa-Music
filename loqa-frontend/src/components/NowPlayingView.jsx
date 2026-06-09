@@ -77,7 +77,7 @@ const LyricsPanel = memo(function LyricsPanel({ lines, plainText, loading, activ
   );
 
   if (plainText) return (
-    <div style={{ overflowY: 'auto', flex: 1, padding: '0 28px 80px' }}>
+    <div style={{ overflowY: 'auto', flex: 1, padding: "0 28px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 15, lineHeight: 1.9, color: 'rgba(255,255,255,.75)' }}>
         {plainText}
       </pre>
@@ -85,7 +85,7 @@ const LyricsPanel = memo(function LyricsPanel({ lines, plainText, loading, activ
   );
 
   return (
-    <div style={{ overflowY: 'auto', flex: 1, padding: '0 28px 80px' }}>
+    <div style={{ overflowY: 'auto', flex: 1, padding: "0 28px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       {lines.map((line, i) => (
         <div key={i} ref={i === activeIdx ? activeRef : null}
           style={{
@@ -276,8 +276,15 @@ export const NowPlayingView = memo(function NowPlayingView({
         }} />
       )}
 
-      {/* ── Header ──────────────────────────────────────────── */}
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 8px', flexShrink: 0 }}>
+      {/* ── Header — respects safe area for notch / Dynamic Island ── */}
+      <div style={{
+        position: 'relative', zIndex: 1,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        // SAFE AREA FIX: push content below status bar / Dynamic Island
+        paddingTop: 'max(16px, env(safe-area-inset-top, 16px))',
+        padding: 'max(16px, env(safe-area-inset-top, 16px)) 20px 8px',
+        flexShrink: 0,
+      }}>
         <button onClick={handleClose} aria-label="Minimise player"
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.7)', padding: 8, borderRadius: 8, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Svg d="M19 9l-7 7-7-7" size={22} stroke="currentColor" strokeWidth={2.5} />
@@ -417,7 +424,7 @@ export const NowPlayingView = memo(function NowPlayingView({
           )}
 
           {tab === 'queue' && (
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 80px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px calc(80px + env(safe-area-inset-bottom, 0px))' }}>
               {allQueue.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '60px 20px', opacity: .45 }}>
                   <Svg d={I.queue} size={40} stroke="rgba(255,255,255,.5)" />

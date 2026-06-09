@@ -8,7 +8,7 @@
  *  ✓ PlaylistDetailView: better empty state, total duration
  *  ✓ All views: React.memo for performance
  */
-import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import { gradStr, fmtTime, fmtViews, cacheSong, getCachedSong } from '../utils/constants.js';
 import { Svg, I, EqBars, Spinner } from './Icons.jsx';
 import { Thumb, SongRow, SongCard, Section, HScroll } from './UI.jsx';
@@ -35,6 +35,7 @@ const LazyGenreRow = memo(function LazyGenreRow({ genre, C, cur, playing, liked,
   const [loaded, setLoaded]   = useState(false);
   const [loading, setLoading] = useState(false);
   const ref = useRef(null);
+  const likedSet = useMemo(() => new Set(Array.isArray(liked) ? liked.map(s => typeof s === 'string' ? s : s?.id) : []), [liked]);
 
   useEffect(() => {
     if (loaded) return;
@@ -70,7 +71,7 @@ const LazyGenreRow = memo(function LazyGenreRow({ genre, C, cur, playing, liked,
           : <HScroll>
               {songs.slice(0, 12).map(s => (
                 <SongCard key={s.id} song={s} current={cur} playing={playing}
-                  liked={liked.includes(s.id)}
+                  liked={likedSet.has(s.id)}
                   onPlay={t => onPlay(t, { toggle: true, list: songs, source: 'genre' })}
                   onLike={onLike} onCtx={onCtx} C={C} />
               ))}
@@ -135,6 +136,8 @@ export const HomeView = memo(function HomeView({
 }) {
   const [trending,  setTrending]  = useState([]);
   const [loading,   setLoading]   = useState(true);
+  // PERFORMANCE FIX: O(1) liked lookup
+  const likedSet = useMemo(() => new Set(liked.map(s => typeof s === 'string' ? s : s?.id)), [liked]);
 
   useEffect(() => {
     getTrending().then(t => { t.forEach(cacheSong); setTrending(t); setLoading(false); });
@@ -211,7 +214,7 @@ export const HomeView = memo(function HomeView({
             : <HScroll>
                 {recommendations.slice(0, 18).map(s => (
                   <SongCard key={s.id} song={s} current={cur} playing={playing}
-                    liked={liked.includes(s.id)}
+                    liked={likedSet.has(s.id)}
                     onPlay={t => onPlay(t, { toggle: true, list: recommendations, source: 'recommendations' })}
                     onLike={onLike} onCtx={onCtx} C={C} />
                 ))}
@@ -227,7 +230,7 @@ export const HomeView = memo(function HomeView({
           : <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 2 : 4 }}>
               {trending.slice(0, isMobile ? 6 : 10).map((s, i) => (
                 <SongRow key={s.id} song={s} idx={i} current={cur} playing={playing}
-                  liked={liked.includes(s.id)}
+                  liked={likedSet.has(s.id)}
                   onPlay={t => onPlay(t, { toggle: true, list: trending, source: 'trending' })}
                   onLike={onLike} onCtx={onCtx} C={C} isMobile={isMobile} />
               ))}
@@ -270,6 +273,7 @@ export const SearchView = memo(function SearchView({
   const [suggestions, setSugg] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showSug, setShowSug] = useState(false);
+  const likedSet = useMemo(() => new Set(Array.isArray(liked) ? liked.map(s => typeof s === 'string' ? s : s?.id) : []), [liked]);
   const [showHistory, setShowHistory] = useState(!initialQ);
   const inputRef = useRef(null);
   const debRef   = useRef(null);
@@ -414,7 +418,7 @@ export const SearchView = memo(function SearchView({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {results.map((s, i) => (
               <SongRow key={s.id} song={s} idx={i} current={cur} playing={playing}
-                liked={liked.includes(s.id)}
+                liked={likedSet.has(s.id)}
                 onPlay={t => onPlay(t, { toggle: true, list: results, source: 'search' })}
                 onLike={onLike} onCtx={onCtx} C={C} />
             ))}
@@ -444,6 +448,7 @@ export const SearchView = memo(function SearchView({
 export const GenreView = memo(function GenreView({ C, genre, song: cur, playing, liked, onPlay, onLike, onCtx, onBack }) {
   const [songs, setSongs]     = useState([]);
   const [loading, setLoading] = useState(true);
+  const likedSet = useMemo(() => new Set(Array.isArray(liked) ? liked.map(s => typeof s === 'string' ? s : s?.id) : []), [liked]);
   useEffect(() => {
     setLoading(true);
     getGenre(genre).then(t => { t.forEach(cacheSong); setSongs(t); setLoading(false); });
@@ -464,7 +469,7 @@ export const GenreView = memo(function GenreView({ C, genre, song: cur, playing,
         : <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {songs.map((s, i) => (
               <SongRow key={s.id} song={s} idx={i} current={cur} playing={playing}
-                liked={liked.includes(s.id)}
+                liked={likedSet.has(s.id)}
                 onPlay={t => onPlay(t, { toggle: true, list: songs, source: 'genre' })}
                 onLike={onLike} onCtx={onCtx} C={C} />
             ))}
@@ -559,6 +564,8 @@ export const PlaylistDetailView = memo(function PlaylistDetailView({ C, playlist
   const isLiked = playlist.id === 'liked';
   const songs   = (playlist.songs || []).map(id => getCachedSong(id)).filter(Boolean);
   const totalDur = songs.reduce((acc, s) => acc + (s?.dur || 0), 0);
+  // PERFORMANCE FIX: O(1) liked check
+  const likedSet = useMemo(() => new Set(Array.isArray(liked) ? liked.map(s => typeof s === 'string' ? s : s?.id) : []), [liked]);
 
   return (
     <div style={{ minWidth: 0 }}>
@@ -602,7 +609,7 @@ export const PlaylistDetailView = memo(function PlaylistDetailView({ C, playlist
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {songs.map((s, i) => (
             <SongRow key={s.id} song={s} idx={i} current={cur} playing={playing}
-              liked={liked.includes(s.id)}
+              liked={likedSet.has(s.id)}
               onPlay={t => onPlay(t, { toggle: true, list: songs, source: 'playlist' })}
               onLike={onLike} onCtx={onCtx} C={C} />
           ))}
