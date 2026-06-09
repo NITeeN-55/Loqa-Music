@@ -1,17 +1,14 @@
 /* ================================================================
-   Loqa Music — Responsive Overrides v6
-   Covers:
-     • 320px  (small phones — iPhone SE 1st gen, Galaxy A01)
-     • 375px  (iPhone 14/15 Standard)
-     • 390px  (iPhone 14 Pro, 15 Pro)
-     • 425px  (large phones — Pixel 8, Galaxy S24)
-     • 540px  (Galaxy Z Fold inner screen, Surface Duo column)
-     • 768px  (tablets — iPad mini, Galaxy Tab)
+   Loqa Music — Responsive Overrides
+   File: src/styles/responsive.css
+   Import after index.css in main.jsx or index.css
+
+   Targets:
+     • 320px  (small phones, e.g. iPhone SE 1st gen)
+     • 375px  (iPhone 14/15 standard)
+     • 425px  (large phones)
+     • 768px  (tablets, iPad mini)
      • 1024px (iPad Pro, small laptops)
-     • 1280px (HD laptops)
-     Landscape handling via max-height + orientation
-     Safe-area insets (notch / Dynamic Island / home bar)
-     Foldable devices via pointer: coarse and width ranges
    ================================================================ */
 
 /* ── 1. Global overflow guard ─────────────────────────── */
@@ -20,18 +17,22 @@ html, body {
   max-width: 100vw;
 }
 
-/* ── 2. Universal flex child prevent overflow ──────────── */
-* { min-width: 0; }
+/* ── 2. Viewport meta enforcement via CSS ─────────────── */
+* {
+  min-width: 0; /* prevents flex children from blowing layout */
+}
 
-/* ── 3. Touch targets (WCAG 2.5.5) ─────────────────────── */
+/* ── 3. Touch target minimum (WCAG 2.5.5) ─────────────── */
 @media (max-width: 768px) {
   button,
   [role="button"],
-  a[href] {
+  a,
+  input[type="range"] {
     min-height: 44px;
     min-width:  44px;
   }
-  /* Exception: compact icon-buttons inside rows */
+
+  /* Exception: icon-only small buttons inside rows — keep compact but pad */
   button[aria-label][style*="padding:4px"],
   button[aria-label][style*="padding: 4px"] {
     min-height: 36px;
@@ -39,21 +40,27 @@ html, body {
   }
 }
 
-/* ── 4. App shell overflow guard ────────────────────────── */
+/* ── 4. App shell ─────────────────────────────────────── */
 @media (max-width: 768px) {
-  #root > div { overflow-x: hidden; }
+  /* Main wrapper — never let it force overflow */
+  #root > div {
+    overflow-x: hidden;
+  }
+
+  /* Main content: extra bottom padding so content isn't
+     hidden behind fixed player + mobile nav (≈110px total) */
   main[aria-label="Main content"] {
-    /* safe-area-aware bottom padding — must be >= player(74) + nav(56) + buffer */
-    padding-bottom: calc(
-      74px + 56px + 20px +
-      env(safe-area-inset-bottom, 0px)
-    ) !important;
+    padding-bottom: 120px !important;
   }
 }
 
 /* ── 5. Header ────────────────────────────────────────── */
 @media (max-width: 425px) {
-  header { padding: 8px 10px !important; }
+  /* On very small screens compress header padding */
+  header {
+    padding: 8px 10px !important;
+  }
+
   header h1 {
     font-size: 14px !important;
     white-space: nowrap;
@@ -61,134 +68,177 @@ html, body {
     text-overflow: ellipsis;
     max-width: 160px;
   }
+
+  /* EQ button: hide the emoji label on tiny screens */
   header button[aria-label="Equalizer"] {
     padding: 6px 8px !important;
     font-size: 14px;
   }
 }
+
 @media (max-width: 375px) {
-  header h1 { max-width: 120px !important; }
+  header h1 {
+    max-width: 120px !important;
+  }
 }
 
-/* ── 6. Keyboard hint strip — already hidden by JSX ────── */
+/* ── 6. Keyboard hint strip (desktop only, already hidden
+        on mobile in JSX — belt-and-suspenders) ─────────── */
 @media (max-width: 768px) {
-  div[aria-hidden="true"][style*="Shift"] { display: none !important; }
+  div[aria-hidden="true"][style*="Shift+←→"] {
+    display: none !important;
+  }
 }
 
-/* ── 7. Sidebar / drawer ──────────────────────────────── */
+/* ── 7. Sidebar / navigation drawer ──────────────────── */
 @media (max-width: 768px) {
+  /* The sidebar slides over content — ensure it never 
+     causes horizontal overflow on the page */
   aside[aria-label="Main navigation"] {
     width: min(240px, 85vw) !important;
   }
-  aside[aria-label="Main navigation"] span { font-size: 12px; }
+
+  /* Playlist list inside sidebar: tighter text */
+  aside[aria-label="Main navigation"] span {
+    font-size: 12px;
+  }
 }
 
-/* ── 8. Mobile bottom nav ─────────────────────────────── */
+/* ── 8. Mobile bottom nav bar ─────────────────────────── */
 @media (max-width: 768px) {
   nav[aria-label="Mobile navigation"] {
-    /* Base height + iOS home-bar safe area */
-    height: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
-    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    height: 60px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
   nav[aria-label="Mobile navigation"] button {
+    min-height: unset; /* override global 44px — we rely on flex stretch */
     padding: 6px 0;
   }
-  nav[aria-label="Mobile navigation"] span { font-size: 10px; }
+
+  nav[aria-label="Mobile navigation"] span {
+    font-size: 10px;
+  }
 }
+
 @media (max-width: 320px) {
-  nav[aria-label="Mobile navigation"] span { display: none; }
+  nav[aria-label="Mobile navigation"] span {
+    display: none; /* hide labels on tiny screens, keep icons */
+  }
 }
 
 /* ── 9. Player bar (mobile) ───────────────────────────── */
 @media (max-width: 768px) {
+  /* Bump the fixed player bar above mobile nav so they don't overlap.
+     JSX inline style sets position relative — override to add
+     enough bottom clearance. */
   div[role="region"][aria-label="Music player"] {
-    position: sticky !important;
-    /* sit above mobile nav (56px + safe area) */
-    bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
-    z-index: 45 !important;
-    overflow: hidden !important;
-    max-width: 100vw !important;
+    position: sticky;
+    bottom: 60px; /* height of mobile nav */
+    z-index: 45;
+  }
+
+  /* Song title + artist in player bar */
+  div[role="region"][aria-label="Music player"] div[style*="minWidth:0"] div:first-child {
+    font-size: 12px !important;
   }
 }
+
 @media (max-width: 375px) {
+  /* Extra-small: shrink thumbnail to free space for controls */
   div[role="region"][aria-label="Music player"] > div:last-child > div:first-child {
     width: 40px !important;
     height: 40px !important;
   }
+
+  /* Give controls a bit more room */
   div[role="region"][aria-label="Music player"] button {
     padding: 4px !important;
   }
 }
 
-/* ── 10. Song cards grid (HScroll) ───────────────────── */
+/* ── 10. Song cards grid (HScroll) ────────────────────── */
 @media (max-width: 425px) {
-  div[style*="gridAutoColumns:160px"],
-  div[style*="gridAutoColumns: 160px"] {
+  /* Narrower cards on small phones */
+  div[style*="gridAutoColumns:160px"] {
     grid-auto-columns: 140px !important;
     gap: 10px !important;
   }
 }
+
 @media (max-width: 375px) {
-  div[style*="gridAutoColumns:160px"],
-  div[style*="gridAutoColumns: 160px"] {
+  div[style*="gridAutoColumns:160px"] {
     grid-auto-columns: 128px !important;
     gap: 8px !important;
   }
 }
 
-/* ── 11. Song rows ────────────────────────────────────── */
+/* ── 11. Song rows ─────────────────────────────────────── */
 @media (max-width: 425px) {
+  /* Reduce horizontal padding in song rows */
   div[role="row"] {
     padding: 8px 8px !important;
     gap: 8px !important;
   }
-}
 
-/* ── 12. Home view hero ───────────────────────────────── */
-@media (max-width: 425px) {
-  div[style*="flexWrap: wrap"],
-  div[style*="flexWrap:wrap"] {
-    gap: 8px;
+  /* Hide view count (non-essential on mobile) */
+  div[role="row"] > div > div:last-child {
+    font-size: 11px;
   }
 }
+
+/* ── 12. Home view: Hero section ──────────────────────── */
+@media (max-width: 425px) {
+  /* Hero CTA buttons stack vertically on narrow screens */
+  div[style*="gradStr"] > div[style*="flexWrap"],
+  div[style*="borderRadius: 20"] > div > div[style*="gap:10"],
+  div[style*="flexWrap: wrap"] {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Explicit hero button stack for narrow phones */
 @media (max-width: 375px) {
   .loqa-hero-btns {
     flex-direction: column !important;
     gap: 8px !important;
   }
+
   .loqa-hero-btns button {
     width: 100%;
     justify-content: center;
   }
 }
 
-/* ── 13. Search input — prevent iOS zoom (<16px triggers it) */
-@media (max-width: 768px) {
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  input[type="search"],
-  textarea {
-    font-size: 16px !important;
-    -webkit-text-size-adjust: 100% !important;
-  }
-}
+/* ── 13. Search input ─────────────────────────────────── */
 @media (max-width: 425px) {
-  div[style*="gap: 12"] button[style*="borderRadius: 10"] {
+  /* Search box: hide "Search" button text on tiny screens,
+     use icon-only affordance via reduced padding */
+  div[style*="alignItems: center"][style*="gap: 12"] button[style*="borderRadius: 10"] {
     padding: 8px 12px !important;
     font-size: 12px !important;
   }
 }
 
+@media (max-width: 375px) {
+  /* Full-width search input, tighter */
+  div[style*="alignItems: center"][style*="gap: 12"] input {
+    font-size: 14px !important;
+    padding: 12px 0 !important;
+  }
+}
+
 /* ── 14. Genre grid ────────────────────────────────────── */
 @media (max-width: 375px) {
-  div[style*="repeat(2,1fr)"],
-  div[style*="repeat(2, 1fr)"] {
+  /* 2 columns even on tiny screens — already set in JSX (isMobile),
+     just ensure no overflow */
+  div[style*="repeat(2,1fr)"] {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 8px !important;
   }
-  div[style*="repeat(2,1fr)"] button,
-  div[style*="repeat(2, 1fr)"] button {
+
+  div[style*="repeat(2,1fr)"] button {
     font-size: 11px !important;
     padding: 12px 10px !important;
   }
@@ -196,77 +246,124 @@ html, body {
 
 /* ── 15. Library view ──────────────────────────────────── */
 @media (max-width: 425px) {
+  /* Library header row: title + "New Playlist" button */
   div[style*="justifyContent: space-between"] h2[style*="fontWeight: 900"] {
     font-size: 18px !important;
   }
 }
+
 @media (max-width: 375px) {
+  /* Stack library header on tiny screens */
+  div > div[style*="justifyContent: space-between"]:has(> h2) {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  div > div[style*="justifyContent: space-between"]:has(> h2) button {
+    font-size: 12px !important;
+    padding: 8px 14px !important;
+  }
+}
+
+/* ── 16. Playlist / Library cards ─────────────────────── */
+@media (max-width: 425px) {
+  /* Playlist cards: reduce padding, allow text to wrap */
   div[style*="padding: '14px 16px'"],
   div[style*="padding:14px 16px"] {
     padding: 12px !important;
     gap: 10px !important;
   }
-  div[style*="width: 54"][style*="height: 54"],
-  div[style*="width:54"][style*="height:54"] {
+
+  /* Playlist cover art: slightly smaller */
+  div[style*="width: 54"][style*="height: 54"] {
     width: 46px !important;
     height: 46px !important;
     border-radius: 10px !important;
   }
 }
 
-/* ── 16. Playlist detail header ────────────────────────── */
+/* ── 17. PlaylistDetail header ─────────────────────────── */
 @media (max-width: 425px) {
-  div[style*="gap: 14"] > div[style*="flex: 1"] + button {
+  /* Playlist header: wrap "Play All" button below info */
+  div[style*="alignItems: center"][style*="gap: 14"] > div[style*="flex: 1"] + button {
     flex-shrink: 0;
     align-self: flex-end;
   }
 }
+
 @media (max-width: 375px) {
-  div[style*="gap: 14"][style*="alignItems"] { flex-wrap: wrap; }
+  /* Playlist header: allow wrapping on very small screens */
+  div[style*="alignItems: center"][style*="gap: 14"]:has(> button[style*="Play All"]),
+  div[style*="alignItems: center"][style*="gap: 14"] {
+    flex-wrap: wrap;
+  }
 }
 
-/* ── 17. Queue panel ────────────────────────────────────── */
+/* ── 18. Queue panel (full-screen on mobile already, 
+         ensure no overflow) ────────────────────────────── */
 @media (max-width: 768px) {
   div[role="dialog"][aria-label="Play queue"] {
     width: 100vw !important;
     max-width: 100vw !important;
     overflow-x: hidden;
   }
+
+  /* Queue row text clipping */
+  div[role="dialog"][aria-label="Play queue"] div[style*="flex: 1"][style*="minWidth: 0"] div:first-child {
+    max-width: calc(100vw - 120px);
+  }
 }
 
-/* ── 18. Auth screen ────────────────────────────────────── */
+/* ── 19. Auth screen ────────────────────────────────────── */
 @media (max-width: 425px) {
-  div[style*="borderRadius: 24"] { padding: 28px 18px !important; }
-  div[style*="borderRadius: 24"] h1[style*="fontSize: 28"] { font-size: 24px !important; }
-}
-@media (max-width: 375px) {
-  div[style*="borderRadius: 24"] { padding: 24px 14px !important; }
-  div[style*="borderRadius: 24"] button[type="submit"] { font-size: 14px !important; }
+  /* Auth card: reduce padding on small phones */
+  div[style*="borderRadius: 24"] {
+    padding: 28px 18px !important;
+  }
+
+  div[style*="borderRadius: 24"] h1[style*="fontSize: 28"] {
+    font-size: 24px !important;
+  }
 }
 
-/* ── 19. Modals (Playlist / Settings) ───────────────────── */
+@media (max-width: 375px) {
+  /* Full-width auth card */
+  div[style*="borderRadius: 24"] {
+    padding: 24px 14px !important;
+  }
+
+  div[style*="borderRadius: 24"] button[type="submit"] {
+    font-size: 14px !important;
+  }
+}
+
+/* ── 20. Modals (Playlist create/edit, Settings) ────────── */
 @media (max-width: 768px) {
+  /* Modal overlay: smaller padding so modal doesn't clip */
   div[style*="position: fixed"][style*="alignItems: center"][style*="padding: 20"] {
     padding: 12px !important;
-    align-items: flex-end !important;
+    align-items: flex-end !important; /* slide up from bottom */
   }
+
+  /* Modal card: full-width, round only top corners */
   div[style*="borderRadius: 20"][style*="maxWidth: 380"],
   div[style*="borderRadius: 20"][style*="maxWidth: 460"] {
     border-radius: 20px 20px 0 0 !important;
-    max-height: calc(90vh - env(safe-area-inset-bottom, 0px));
+    max-height: 90vh;
     overflow-y: auto;
-    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-}
-@media (max-width: 425px) {
-  div[style*="borderRadius: 20"][style*="maxWidth: 380"],
-  div[style*="borderRadius: 20"][style*="maxWidth: 460"] {
-    padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 
-/* ── 20. Equalizer panel ─────────────────────────────────── */
+@media (max-width: 425px) {
+  div[style*="borderRadius: 20"][style*="maxWidth: 380"],
+  div[style*="borderRadius: 20"][style*="maxWidth: 460"] {
+    padding: 24px 16px !important;
+  }
+}
+
+/* ── 21. Equalizer panel ────────────────────────────────── */
 @media (max-width: 768px) {
+  /* EQ is a portal overlay — ensure it fits on mobile */
   div[aria-label*="Equalizer"],
   div[aria-label*="equalizer"] {
     width: min(360px, 95vw) !important;
@@ -275,23 +372,27 @@ html, body {
   }
 }
 
-/* ── 21. Context menu ────────────────────────────────────── */
+/* ── 22. Context menu ────────────────────────────────────── */
 @media (max-width: 768px) {
+  /* Prevent context menu from going off-screen */
   div[style*="position: fixed"][style*="minWidth: 210"] {
     max-width: calc(100vw - 24px);
+    /* JS sets top/left — CSS can clamp it */
     right: 12px !important;
     left: auto !important;
   }
 }
 
-/* ── 22. Toast notifications ─────────────────────────────── */
+/* ── 23. Toast notifications ─────────────────────────────── */
 @media (max-width: 425px) {
+  /* Move toasts above mobile player bar */
   div[style*="bottom: 90"][style*="right: 20"] {
-    bottom: calc(74px + 56px + 12px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: 130px !important;
     right: 12px !important;
     left: 12px !important;
     align-items: stretch;
   }
+
   div[style*="bottom: 90"] > div {
     max-width: 100% !important;
     width: 100%;
@@ -299,154 +400,153 @@ html, body {
   }
 }
 
-/* ── 23. Horizontal scroll (HScroll) ────────────────────── */
+/* ── 24. Horizontal scroll (prevent page overflow) ─────── */
 @media (max-width: 768px) {
+  /* All HScroll grids must scroll internally, not push the page */
   div[style*="gridAutoFlow: column"],
   div[style*="gridAutoFlow:column"] {
     overflow-x: auto !important;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    scroll-snap-type: x mandatory;
+    scrollbar-width: none; /* Firefox */
+    /* Extend to edges with negative margin + matching padding */
     margin-left: -12px;
     margin-right: -12px;
     padding-left: 12px;
     padding-right: 12px;
   }
+
   div[style*="gridAutoFlow: column"]::-webkit-scrollbar,
-  div[style*="gridAutoFlow:column"]::-webkit-scrollbar { display: none; }
+  div[style*="gridAutoFlow:column"]::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-/* ── 24. Section headers ─────────────────────────────────── */
+/* ── 25. Section headers in views ────────────────────────── */
 @media (max-width: 425px) {
+  /* Section title + "See all" action row */
   div[style*="marginBottom: 16"][style*="justifyContent: space-between"] h2 {
     font-size: 16px !important;
   }
+
   div[style*="marginBottom: 16"][style*="justifyContent: space-between"] button {
     font-size: 12px !important;
     padding: 3px 6px !important;
   }
 }
 
-/* ── 25. Now Playing — safe area for ALL notch positions ─── */
-[role="dialog"][aria-label="Now Playing"] {
-  /* Inset edges so content never hides under hardware chrome */
-  padding-left:  env(safe-area-inset-left,  0px);
-  padding-right: env(safe-area-inset-right, 0px);
+/* ── 26. Recs section refresh button ─────────────────────── */
+@media (max-width: 375px) {
+  /* Allow recs header to wrap on tiny screens */
+  div[style*="alignItems: flex-start"][style*="justifyContent: space-between"] {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  div[style*="alignItems: flex-start"][style*="justifyContent: space-between"] button {
+    flex-shrink: 0;
+    font-size: 11px !important;
+    padding: 6px 10px !important;
+  }
 }
 
-/* ── 26. Landscape phone adjustments ─────────────────────── */
+/* ── 27. Local Music view ────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Local player header controls wrap nicely */
+  div[style*="justifyContent: space-between"] > div[style*="gap: 8"] {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 425px) {
+  /* Local player progress bar + controls: full width */
+  div[style*="borderRadius"][style*="background"][style*="overflow: hidden"] {
+    border-radius: 14px !important;
+  }
+}
+
+/* ── 28. Landscape phone adjustments ─────────────────────── */
 @media (max-height: 500px) and (orientation: landscape) {
-  /* Compact header */
-  header { padding: 4px 12px !important; }
-
-  /* Now Playing: side-by-side layout helps, but reduce art size */
-  [role="dialog"][aria-label="Now Playing"] {
-    overflow-y: auto !important;
-  }
-
-  /* Player bar: slimmer */
-  div[role="region"][aria-label="Music player"] {
-    min-height: 56px;
-  }
-  main[aria-label="Main content"] {
-    padding-bottom: calc(56px + 56px + 12px + env(safe-area-inset-bottom, 0px)) !important;
-  }
-
-  /* Hero section: reduce padding */
+  /* Reduce hero section height in landscape */
   div[style*="padding: '36px 40px'"],
   div[style*="padding:36px 40px"] {
     padding: 16px 20px !important;
   }
+
+  /* Compact header */
+  header {
+    padding: 6px 14px !important;
+  }
+
+  /* Player bar: make it slimmer */
+  div[role="region"][aria-label="Music player"] {
+    min-height: 56px;
+  }
+
+  main[aria-label="Main content"] {
+    padding-bottom: 100px !important;
+  }
 }
 
-/* ── 27. Tablet (768–1024px) ─────────────────────────────── */
-@media (min-width: 769px) and (max-width: 1024px) {
-  aside[aria-label="Main navigation"] { width: 210px !important; }
+/* ── 29. Tablet breakpoint (768px) ──────────────────────── */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Sidebar: slightly narrower on iPad */
+  aside[aria-label="Main navigation"] {
+    width: 210px !important;
+  }
 
+  /* Desktop player bar: tighten the left info column */
   div[role="region"][aria-label="Music player"] > div {
     padding: 0 18px !important;
     gap: 14px !important;
   }
+
   div[role="region"][aria-label="Music player"] > div > div:first-child {
-    max-width: 230px !important;
-    min-width: 180px !important;
+    width: 220px !important;
   }
+
   div[role="region"][aria-label="Music player"] > div > div:last-child {
-    max-width: 190px !important;
-    min-width: 150px !important;
+    width: 180px !important;
   }
 
   /* Genre grid: 3 columns on tablet */
-  div[style*="repeat(4,1fr)"],
-  div[style*="repeat(4, 1fr)"] {
+  div[style*="repeat(4,1fr)"] {
     grid-template-columns: repeat(3, 1fr) !important;
   }
-}
 
-/* ── 28. Small tablet / large phone (540px) ─────────────── */
-/* Covers Galaxy Z Fold inner display, Surface Duo single pane */
-@media (min-width: 480px) and (max-width: 768px) {
-  main[aria-label="Main content"] {
-    padding: 18px 16px 0 !important;
-  }
-  div[style*="gridAutoColumns:160px"],
-  div[style*="gridAutoColumns: 160px"] {
-    grid-auto-columns: 152px !important;
+  /* Trending: single column on smaller tablets */
+  @media (max-width: 900px) {
+    div[style*="'1fr 1fr'"] {
+      grid-template-columns: 1fr !important;
+    }
   }
 }
 
-/* ── 29. Foldable devices (wide inner screen) ─────────────── */
-/* Galaxy Z Fold unfolded ~884px, Surface Duo side-by-side ~540px each */
-@media (min-width: 540px) and (max-width: 884px) and (pointer: coarse) {
-  /* Two-column content on large foldables */
-  aside[aria-label="Main navigation"] {
-    width: 220px !important;
-  }
-  /* Don't let player bar go full-width on portrait fold */
-  div[role="region"][aria-label="Music player"] {
-    max-width: 100%;
-  }
-}
-
-/* ── 30. Safe area (all devices with hardware notches) ────── */
+/* ── 30. Safe area insets (notched devices) ─────────────── */
 @supports (padding: env(safe-area-inset-bottom)) {
-
-  /* Bottom nav */
   nav[aria-label="Mobile navigation"] {
     padding-bottom: env(safe-area-inset-bottom) !important;
-    height: calc(56px + env(safe-area-inset-bottom)) !important;
+    height: calc(60px + env(safe-area-inset-bottom)) !important;
   }
 
-  /* Player bar sits above nav — no extra safe-area needed */
   div[role="region"][aria-label="Music player"] {
-    padding-bottom: 0 !important;
+    padding-bottom: 0 !important; /* nav handles safe area */
   }
 
-  /* Main scroll area */
-  @media (max-width: 768px) {
-    main[aria-label="Main content"] {
-      padding-bottom: calc(
-        74px + 56px + 20px + env(safe-area-inset-bottom)
-      ) !important;
-    }
-  }
-
-  /* Sidebar drawer on iOS — account for top notch */
-  @media (max-width: 768px) {
-    aside[aria-label="Main navigation"] {
-      padding-top: env(safe-area-inset-top, 0px);
-    }
+  main[aria-label="Main content"] {
+    padding-bottom: calc(120px + env(safe-area-inset-bottom)) !important;
   }
 }
 
-/* ── 31. Reduce motion ────────────────────────────────────── */
+/* ── 31. Reduce motion preference ───────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+
   .fade-up {
     animation: none !important;
     opacity: 1 !important;
@@ -456,57 +556,15 @@ html, body {
 
 /* ── 32. High-contrast mode ─────────────────────────────── */
 @media (forced-colors: active) {
-  button, input, a { border: 1px solid ButtonText !important; }
+  button, input, a {
+    border: 1px solid ButtonText !important;
+  }
 }
 
-/* ── 33. Sticky focus rings on touch — suppress them ──────── */
+/* ── 33. Focus styles on touch (prevent sticky outlines) ── */
 @media (hover: none) {
   button:focus:not(:focus-visible),
-  [role="button"]:focus:not(:focus-visible) { outline: none; }
-}
-
-/* ── 34. Overscroll chaining prevention ──────────────────── */
-@media (max-width: 768px) {
-  div[role="dialog"],
-  div[role="dialog"] > div[style*="overflow"] {
-    overscroll-behavior: contain !important;
-  }
-  main[aria-label="Main content"] {
-    overscroll-behavior-y: contain !important;
-  }
-}
-
-/* ── 35. Local music view ────────────────────────────────── */
-@media (max-width: 768px) {
-  div[style*="justifyContent: space-between"] > div[style*="gap: 8"] {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-}
-@media (max-width: 425px) {
-  div[style*="borderRadius"][style*="background"][style*="overflow: hidden"] {
-    border-radius: 14px !important;
-  }
-}
-
-/* ── 36. Continue Listening grid safe area ───────────────── */
-@media (max-width: 375px) {
-  /* 2-col grid already set in JSX; ensure buttons don't overflow */
-  button[aria-label^="Play"] {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
-
-/* ── 37. Recs section header on small screens ────────────── */
-@media (max-width: 375px) {
-  div[style*="alignItems: flex-start"][style*="justifyContent: space-between"] {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  div[style*="alignItems: flex-start"][style*="justifyContent: space-between"] button {
-    flex-shrink: 0;
-    font-size: 11px !important;
-    padding: 6px 10px !important;
+  [role="button"]:focus:not(:focus-visible) {
+    outline: none;
   }
 }

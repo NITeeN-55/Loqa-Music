@@ -3,14 +3,12 @@ import{gradStr,grad,fmtTime,fmtViews}from'../utils/constants.js';
 import{Svg,I,EqBars,Spinner}from'./Icons.jsx';
 
 /* ── Thumbnail ─────────────────────────────────────────── */
-// PERFORMANCE FIX: React.memo prevents re-renders when parent progress ticks
-export const Thumb = React.memo(function Thumb({song,size=48,radius=10,playing=false}){
+export function Thumb({song,size=48,radius=10,playing=false}){
   const[err,setErr]=useState(false);
   const g=gradStr(song?.ci??0);
   if(song?.thumbnail&&!err)return(
     <div style={{width:size,height:size,borderRadius:radius,overflow:'hidden',flexShrink:0,position:'relative'}}>
-      {/* PERFORMANCE FIX: loading="lazy" defers off-screen thumbnail fetch */}
-      <img src={song.thumbnail} alt="" loading="lazy" onError={()=>setErr(true)}
+      <img src={song.thumbnail} alt="" onError={()=>setErr(true)}
         style={{width:'100%',height:'100%',objectFit:'cover'}}/>
       {playing&&<div style={{position:'absolute',inset:0,background:'rgba(0,0,0,.45)',display:'flex',alignItems:'center',justifyContent:'center'}}>
         <EqBars size={size*0.35} color='#fff' playing/>
@@ -25,11 +23,10 @@ export const Thumb = React.memo(function Thumb({song,size=48,radius=10,playing=f
       </div>}
     </div>
   );
-});
+}
 
 /* ── SongRow ───────────────────────────────────────────── */
-// PERFORMANCE FIX: React.memo + custom comparison — never re-renders on progress tick
-export const SongRow = React.memo(function SongRow({song,idx,current,playing,liked,onPlay,onLike,onCtx,C,showIdx=true,showDur=true,isMobile=false}){
+export function SongRow({song,idx,current,playing,liked,onPlay,onLike,onCtx,C,showIdx=true,showDur=true,isMobile=false}){
   const[hov,setHov]=useState(false);
   const active=current?.id===song.id;
   return(
@@ -89,18 +86,10 @@ export const SongRow = React.memo(function SongRow({song,idx,current,playing,lik
       </div>
     </div>
   );
-}, (prev, next) => {
-  // Custom equality: only re-render when song identity, active/playing/liked state changes
-  return prev.song?.id === next.song?.id &&
-    prev.current?.id === next.current?.id &&
-    prev.playing === next.playing &&
-    prev.liked === next.liked &&
-    prev.isMobile === next.isMobile;
-});
+}
 
 /* ── SongCard (grid card) ──────────────────────────────── */
-// PERFORMANCE FIX: React.memo prevents re-renders from parent progress state changes
-export const SongCard = React.memo(function SongCard({song,current,playing,liked,onPlay,onLike,onCtx,C}){
+export function SongCard({song,current,playing,liked,onPlay,onLike,onCtx,C}){
   const[hov,setHov]=useState(false);
   const active=current?.id===song.id;
   return(
@@ -135,7 +124,7 @@ export const SongCard = React.memo(function SongCard({song,current,playing,liked
       </div>
     </div>
   );
-});
+}
 
 /* ── Section ───────────────────────────────────────────── */
 export function Section({title,action,onAction,children,C}){
@@ -213,8 +202,8 @@ export function Toaster({toasts, isMobile=false}){
   return(
     <div style={{
       position:'fixed',
-      // SAFE AREA FIX: position above player bar + mobile nav + iOS home bar
-      bottom: isMobile ? 'calc(78px + 60px + 12px + env(safe-area-inset-bottom, 0px))' : 90,
+      // FIX: position above player bar + mobile nav on mobile
+      bottom: isMobile ? 'calc(78px + 60px + 12px)' : 90,
       right:20,
       // FIX: stretch to near-edges on mobile
       ...(isMobile ? { right:12, left:12 } : {}),
@@ -327,7 +316,7 @@ function injectPlayerStyles() {
 
 export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,repeat,liked,
   onTogglePlay,onPrev,onNext,onSeek,onVolume,onMute,onShuffle,onRepeat,onLike,
-  onToggleLyrics,onToggleQueue,onOpenNowPlaying,showLyrics,showQueue,hasLyrics,isMobile,C,playlists,onAddToPlaylist}) {
+  onToggleLyrics,onToggleQueue,showLyrics,showQueue,isMobile,C,playlists,onAddToPlaylist}) {
 
   const {barRef,down,drag} = useDragSeekLocal(onSeek);
   const [plPop, setPlPop]   = useState(false);
@@ -403,10 +392,8 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
         // FIX: never overflow
         overflow:'hidden',
       }}>
-        {/* Thumbnail with glow ring — tappable to open NowPlayingView */}
-        <div onClick={onOpenNowPlaying}
-          role="button" aria-label="Open Now Playing"
-          style={{position:'relative',flexShrink:0,cursor:'pointer'}}>
+        {/* Thumbnail with glow ring */}
+        <div style={{position:'relative', flexShrink:0}}>
           <Thumb song={song} size={44} radius={11} playing={playing}/>
           {playing && <div style={{
             position:'absolute', inset:-3, borderRadius:14,
@@ -414,8 +401,8 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
             animation:'loqa-pulse 2s ease infinite', pointerEvents:'none',
           }}/>}
         </div>
-        {/* Info — tappable to open NowPlayingView */}
-        <div style={{flex:1, minWidth:0, cursor:'pointer'}} onClick={onOpenNowPlaying} role="button" aria-label="Open Now Playing">
+        {/* Info */}
+        <div style={{flex:1, minWidth:0}}>
           <div style={{fontSize:13,fontWeight:700,color:C.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{song.title}</div>
           <div style={{fontSize:11,color:C.text3,marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{song.artist}</div>
         </div>

@@ -58,18 +58,7 @@ const LyricsPanel = memo(function LyricsPanel({ lines, plainText, loading, activ
   const activeRef = useRef(null);
 
   useEffect(() => {
-    // BUG FIX: guard against detached nodes during concurrent re-renders.
-    // 1. Check node exists and is still in the document before scrolling.
-    // 2. Defer via rAF so React finishes its commit phase first.
-    const node = activeRef.current;
-    if (!node || !document.contains(node)) return;
-    const raf = requestAnimationFrame(() => {
-      // re-check inside rAF — node may have been unmounted between schedule and run
-      if (activeRef.current && document.contains(activeRef.current)) {
-        activeRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    });
-    return () => cancelAnimationFrame(raf);
+    activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [activeIdx]);
 
   if (loading) return (
@@ -88,7 +77,7 @@ const LyricsPanel = memo(function LyricsPanel({ lines, plainText, loading, activ
   );
 
   if (plainText) return (
-    <div style={{ overflowY: 'auto', flex: 1, padding: '0 28px calc(80px + env(safe-area-inset-bottom, 0px))' }}>
+    <div style={{ overflowY: 'auto', flex: 1, padding: '0 28px 80px' }}>
       <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 15, lineHeight: 1.9, color: 'rgba(255,255,255,.75)' }}>
         {plainText}
       </pre>
@@ -96,15 +85,9 @@ const LyricsPanel = memo(function LyricsPanel({ lines, plainText, loading, activ
   );
 
   return (
-    <div style={{ overflowY: 'auto', flex: 1, padding: '0 28px calc(80px + env(safe-area-inset-bottom, 0px))' }}>
+    <div style={{ overflowY: 'auto', flex: 1, padding: '0 28px 80px' }}>
       {lines.map((line, i) => (
-        // BUG FIX: stable key — never use raw index when refs move between items.
-        // index keys cause React to "reuse" DOM nodes whose refs are still live,
-        // leading to insertBefore against a detached anchor. Use time when present,
-        // fall back to a text-based fingerprint so key is stable across re-renders.
-        <div
-          key={line.time != null ? `lrc-${line.time}` : `lrc-${i}-${(line.text || '').slice(0, 12)}`}
-          ref={i === activeIdx ? activeRef : null}
+        <div key={i} ref={i === activeIdx ? activeRef : null}
           style={{
             fontSize: i === activeIdx ? 22 : 18,
             fontWeight: i === activeIdx ? 800 : 400,
@@ -293,14 +276,8 @@ export const NowPlayingView = memo(function NowPlayingView({
         }} />
       )}
 
-      {/* ── Header — respects safe area for notch / Dynamic Island ── */}
-      <div style={{
-        position: 'relative', zIndex: 1,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        // SAFE AREA FIX: push content below status bar / Dynamic Island
-        padding: 'max(16px, env(safe-area-inset-top, 16px)) 20px 8px',
-        flexShrink: 0,
-      }}>
+      {/* ── Header ──────────────────────────────────────────── */}
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 8px', flexShrink: 0 }}>
         <button onClick={handleClose} aria-label="Minimise player"
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.7)', padding: 8, borderRadius: 8, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Svg d="M19 9l-7 7-7-7" size={22} stroke="currentColor" strokeWidth={2.5} />
@@ -423,14 +400,7 @@ export const NowPlayingView = memo(function NowPlayingView({
         </div>
 
         {/* ── RIGHT: Tabs (desktop tab bar + content) ────────── */}
-        {/* BUG FIX: key forces a full subtree remount when switching between
-            mobile and desktop layouts. Without it, React inserts the desktop
-            tab-bar div at position 0 while the LyricsPanel (position 1) still
-            holds a live activeRef — insertBefore(desktopBar, lyricsPanel) can
-            fire against a node mid-scroll → DOMException. */}
-        <div
-          key={isMobile ? 'right-mobile' : 'right-desktop'}
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
           {!isMobile && (
             <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,.1)', padding: '0 28px', flexShrink: 0 }}>
               {[['queue','Queue'],['lyrics','Lyrics'],['sleep','Sleep Timer']].map(([id, label]) => (
@@ -442,25 +412,12 @@ export const NowPlayingView = memo(function NowPlayingView({
             </div>
           )}
 
-          {/* BUG FIX: every conditional branch needs an explicit key.
-              Without keys React position-matches siblings and may call
-              insertBefore(newNode, nodeAlreadyRemoved) → "insertBefore" DOMException.
-              The key tells React which element to fully unmount before mounting
-              the next one, so the reference node is always valid. */}
-
           {tab === 'lyrics' && (
-            <LyricsPanel
-              key="panel-lyrics"
-              lines={lyrics.lines}
-              plainText={lyrics.plainText}
-              loading={lyrics.loading}
-              activeIdx={lyrics.activeIdx}
-              color={color}
-            />
+            <LyricsPanel lines={lyrics.lines} plainText={lyrics.plainText} loading={lyrics.loading} activeIdx={lyrics.activeIdx} color={color} />
           )}
 
           {tab === 'queue' && (
-            <div key="panel-queue" style={{ flex: 1, overflowY: 'auto', padding: '0 20px calc(80px + env(safe-area-inset-bottom, 0px))' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 80px' }}>
               {allQueue.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '60px 20px', opacity: .45 }}>
                   <Svg d={I.queue} size={40} stroke="rgba(255,255,255,.5)" />
@@ -478,7 +435,7 @@ export const NowPlayingView = memo(function NowPlayingView({
             </div>
           )}
 
-          {tab === 'sleep' && <SleepTimerPanel key="panel-sleep" sleepTimer={sleepTimer} />}
+          {tab === 'sleep' && <SleepTimerPanel sleepTimer={sleepTimer} />}
         </div>
       </div>
     </div>
