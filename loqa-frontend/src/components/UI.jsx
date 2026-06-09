@@ -1,14 +1,14 @@
-import React,{useState,useRef,useEffect}from'react';
+import React,{useState,useRef,useEffect,memo}from'react';
 import{gradStr,grad,fmtTime,fmtViews}from'../utils/constants.js';
 import{Svg,I,EqBars,Spinner}from'./Icons.jsx';
 
 /* ── Thumbnail ─────────────────────────────────────────── */
-export function Thumb({song,size=48,radius=10,playing=false}){
+export const Thumb = memo(function Thumb({song,size=48,radius=10,playing=false}){
   const[err,setErr]=useState(false);
   const g=gradStr(song?.ci??0);
   if(song?.thumbnail&&!err)return(
     <div style={{width:size,height:size,borderRadius:radius,overflow:'hidden',flexShrink:0,position:'relative'}}>
-      <img src={song.thumbnail} alt="" onError={()=>setErr(true)}
+      <img src={song.thumbnail} alt="" loading="lazy" onError={()=>setErr(true)}
         style={{width:'100%',height:'100%',objectFit:'cover'}}/>
       {playing&&<div style={{position:'absolute',inset:0,background:'rgba(0,0,0,.45)',display:'flex',alignItems:'center',justifyContent:'center'}}>
         <EqBars size={size*0.35} color='#fff' playing/>
@@ -23,10 +23,10 @@ export function Thumb({song,size=48,radius=10,playing=false}){
       </div>}
     </div>
   );
-}
+});
 
 /* ── SongRow ───────────────────────────────────────────── */
-export function SongRow({song,idx,current,playing,liked,onPlay,onLike,onCtx,C,showIdx=true,showDur=true,isMobile=false}){
+export const SongRow = memo(function SongRow({song,idx,current,playing,liked,onPlay,onLike,onCtx,C,showIdx=true,showDur=true,isMobile=false}){
   const[hov,setHov]=useState(false);
   const active=current?.id===song.id;
   return(
@@ -89,7 +89,7 @@ export function SongRow({song,idx,current,playing,liked,onPlay,onLike,onCtx,C,sh
 }
 
 /* ── SongCard (grid card) ──────────────────────────────── */
-export function SongCard({song,current,playing,liked,onPlay,onLike,onCtx,C}){
+export const SongCard = memo(function SongCard({song,current,playing,liked,onPlay,onLike,onCtx,C}){
   const[hov,setHov]=useState(false);
   const active=current?.id===song.id;
   return(

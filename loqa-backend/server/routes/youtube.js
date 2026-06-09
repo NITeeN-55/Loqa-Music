@@ -7,7 +7,12 @@ import { Router } from 'express';
 
 const router = Router();
 
-const INNERTUBE_API_KEY = process.env.INNERTUBE_API_KEY || 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
+/* ── API Key validation on startup ──────────────────────────── */
+const INNERTUBE_API_KEY = process.env.INNERTUBE_API_KEY;
+if (!INNERTUBE_API_KEY) {
+  console.warn('[youtube] WARNING: INNERTUBE_API_KEY env var is not set. YouTube routes will fail.');
+}
+
 const CLIENT_CTX = {
   client: { clientName: 'WEB', clientVersion: '2.20240101.00.00', hl: 'en', gl: 'US' },
 };

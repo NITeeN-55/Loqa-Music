@@ -1,13 +1,14 @@
 /**
- * Personalised Recommendations Engine v4.0 (MongoDB)
+ * Personalised Recommendations Engine v5.0 (MongoDB)
  *
  * Strategy (like Spotify Radio):
  *  1. Score artists from play_history (recency-weighted) using aggregation
  *  2. Bonus for liked artists
  *  3. Seed from currently-playing song's artist
- *  4. Fetch YouTube results for top artists in parallel
- *  5. Deduplicate + exclude recently played + weighted shuffle
- *  6. Return up to `limit` songs
+ *  4. Last.fm similar artists → discover artists user hasn't heard (NEW)
+ *  5. Fetch YouTube results for top artists in parallel
+ *  6. Deduplicate + exclude recently played + weighted shuffle
+ *  7. Return up to `limit` songs
  */
 import { Router } from 'express';
 import { PlayHistory, LikedSong } from '../db.js';
@@ -16,7 +17,9 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 router.use(requireAuth);
 
-const IK   = process.env.INNERTUBE_API_KEY || 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
+/* ── Environment: no hardcoded keys ─────────────────────────── */
+const IK          = process.env.INNERTUBE_API_KEY;
+const LASTFM_KEY  = process.env.LASTFM_API_KEY; // optional — graceful fallback if absent
 const BASE = 'https://www.youtube.com/youtubei/v1';
 const CTX  = {
   context: {
@@ -27,7 +30,25 @@ const CTX  = {
   },
 };
 
+/* ── Last.fm: similar artists for genuine discovery ──────────── */
+async function getLastfmSimilar(artist, limit = 5) {
+  if (!LASTFM_KEY || !artist) return [];
+  try {
+    const url = new URL('https://ws.audioscrobbler.com/2.0/');
+    url.searchParams.set('method',  'artist.getSimilar');
+    url.searchParams.set('artist',  artist);
+    url.searchParams.set('api_key', LASTFM_KEY);
+    url.searchParams.set('format',  'json');
+    url.searchParams.set('limit',   String(limit));
+    const r = await fetch(url.toString(), { signal: AbortSignal.timeout(4000) });
+    if (!r.ok) return [];
+    const d = await r.json();
+    return (d.similarartists?.artist || []).map(a => a.name).filter(Boolean);
+  } catch { return []; }
+}
+
 async function ytPost(endpoint, body) {
+  if (!IK) throw new Error('INNERTUBE_API_KEY not set');
   const r = await fetch(`${BASE}/${endpoint}?key=${IK}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
@@ -146,25 +167,35 @@ router.get('/', async (req, res) => {
       .map(([name]) => name)
       .slice(0, 7);
 
-    /* ── 4. Build search queries ─────────────────────────────── */
+    /* ── 4. Last.fm similar artists (discovery — new artists) ── */
+    const knownArtists = new Set(topArtists.map(a => a.toLowerCase()));
+    const similarArtists = LASTFM_KEY && topArtists.length > 0
+      ? (await getLastfmSimilar(topArtists[0], 6)).filter(a => !knownArtists.has(a.toLowerCase()))
+      : [];
+
+    /* ── 5. Build search queries ─────────────────────────────── */
     const queries = [];
     if (seedArtist) {
       queries.push(`${seedArtist} best songs`);
       queries.push(`${seedArtist} similar artists music`);
     }
-    for (const a of topArtists.slice(0, 5)) {
+    for (const a of topArtists.slice(0, 4)) {
       if (a !== seedArtist) queries.push(`${a} music hits`);
+    }
+    // Inject ~20% novelty via Last.fm similar artists (artists user hasn't heard)
+    for (const a of similarArtists.slice(0, 2)) {
+      queries.push(`${a} best songs`);
     }
     if (topArtists.length < 2) {
       queries.push('top music hits 2024', 'trending songs this week');
     }
 
-    /* ── 5. Fetch all queries in parallel ────────────────────── */
+    /* ── 6. Fetch all queries in parallel ────────────────────── */
     const batches = await Promise.allSettled(
       queries.slice(0, 8).map(q => searchYT(q, 6))
     );
 
-    /* ── 6. Merge + deduplicate ──────────────────────────────── */
+    /* ── 7. Merge + deduplicate ──────────────────────────────── */
     const seen   = new Set();
     const result = [];
     for (const b of batches) {
@@ -176,7 +207,7 @@ router.get('/', async (req, res) => {
       }
     }
 
-    /* ── 7. Exclude recently played (last 6 hours) ───────────── */
+    /* ── 8. Exclude recently played (last 6 hours) ───────────── */
     const recentIds = new Set(
       await PlayHistory.distinct('song_id', { user_id: req.userId, played_at: { $gte: hours6 } })
     );
@@ -184,15 +215,16 @@ router.get('/', async (req, res) => {
 
     const filtered = result.filter(s => !recentIds.has(s.id));
 
-    /* ── 8. Weighted shuffle + assign gradient colours ────────── */
+    /* ── 9. Weighted shuffle + assign gradient colours ────────── */
     const shuffled = weightedShuffle(filtered)
       .slice(0, limit)
       .map((s, i) => ({ ...s, ci: i % 8, ai: i }));
 
     res.json({
-      items:    shuffled,
-      basedOn:  topArtists.slice(0, 4),
-      seedUsed: !!seedArtist,
+      items:          shuffled,
+      basedOn:        topArtists.slice(0, 4),
+      seedUsed:       !!seedArtist,
+      discoveryFrom:  similarArtists.slice(0, 2), // artists injected via Last.fm
     });
   } catch (err) {
     console.error('[recommendations]', err.message);

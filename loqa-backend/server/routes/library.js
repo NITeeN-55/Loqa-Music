@@ -6,12 +6,23 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 router.use(requireAuth);
 
+/* ── URL validation helper ────────────────────────────────────
+   Only allow http/https thumbnail URLs to prevent javascript: injection.
+──────────────────────────────────────────────────────────────── */
+function sanitizeThumb(url) {
+  if (!url || typeof url !== 'string') return '';
+  try {
+    const u = new URL(url);
+    return (u.protocol === 'http:' || u.protocol === 'https:') ? url : '';
+  } catch { return ''; }
+}
+
 /* Helper: normalise song fields from request body */
 const songFields = (s) => ({
   song_id:     s.id     || s.song_id     || '',
   song_title:  s.title  || s.song_title  || 'Unknown',
   song_artist: s.artist || s.song_artist || 'Unknown',
-  song_thumb:  s.thumbnail || s.thumb || s.song_thumb || '',
+  song_thumb:  sanitizeThumb(s.thumbnail || s.thumb || s.song_thumb || ''),
   song_dur:    s.dur    || s.song_dur    || 0,
 });
 

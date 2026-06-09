@@ -10,15 +10,11 @@ import { create } from 'zustand';
 import { loadLS, saveLS, cacheSong } from '../utils/constants.js';
 import { apiFetch } from '../utils/api.js';
 import { _regAddRecent } from './playerStore.js';
+import useAuthStore from './authStore.js';
 
-/* ── Auth headers — read from localStorage (same as original) ── */
+/* ── Auth headers — read from authStore (not localStorage directly) ── */
 function getHeaders() {
-  try {
-    const token = JSON.parse(localStorage.getItem('lm2'))?.token;
-    return token
-      ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-      : { 'Content-Type': 'application/json' };
-  } catch { return { 'Content-Type': 'application/json' }; }
+  return useAuthStore.getState().headers();
 }
 
 /* ── Search history helpers ────────────────────────────────── */

@@ -32,14 +32,9 @@ const LS='lm2';
 export const loadLS=()=>{try{return JSON.parse(localStorage.getItem(LS))||{};}catch{return{};}};
 export const saveLS=(d)=>{try{localStorage.setItem(LS,JSON.stringify(d));}catch{}};
 
-let _cache={};
-try{_cache=JSON.parse(localStorage.getItem('lm_cache'))||{};}catch{}
-export function cacheSong(s){
-  if(!s?.id)return;
-  _cache[s.id]={id:s.id,title:s.title||'Unknown',artist:s.artist||'Unknown',
-    album:s.album||'YouTube',dur:s.dur||0,ci:s.ci??0,ai:s.ai??0,
-    thumbnail:s.thumbnail||'',views:s.views||'',isYoutube:true};
-  try{const k=Object.keys(_cache);if(k.length>300)k.slice(0,100).forEach(x=>delete _cache[x]);
-    localStorage.setItem('lm_cache',JSON.stringify(_cache));}catch{}
-}
-export const getCachedSong=(id)=>id?_cache[id]||null:null;
+/* ── Song cache — IndexedDB-backed via songCache.js ────────────
+   Re-exported here so all existing imports keep working.
+   Old localStorage cache removed — no more 5MB cap or main-thread
+   blocking. songCache.js handles async writes + in-memory reads.
+──────────────────────────────────────────────────────────────── */
+export { cacheSong, getCachedSong } from './songCache.js';
