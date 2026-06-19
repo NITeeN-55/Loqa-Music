@@ -1,32 +1,77 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-
-  // In dev, proxy to localhost unless overridden; in prod use env var
   const apiUrl = env.VITE_API_URL || 'https://loqa-music.onrender.com';
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+        manifest: {
+          name: 'Loqa Music',
+          short_name: 'Loqa',
+          description: 'Stream music from YouTube with a Spotify-like experience',
+          theme_color: '#060608',
+          background_color: '#060608',
+          display: 'standalone',
+          orientation: 'portrait',
+          start_url: '/',
+          scope: '/',
+          icons: [
+            { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          ],
+          categories: ['music', 'entertainment'],
+          shortcuts: [
+            { name: 'Search', short_name: 'Search', url: '/?view=search', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+            { name: 'Library', short_name: 'Library', url: '/?view=library', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+          ],
+        },
+        workbox: {
+          // Cache app shell assets (JS, CSS, fonts)
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          // Don't cache API calls — always network-first
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/loqa-music\.onrender\.com\/api\//,
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'api-cache',
+                networkTimeoutSeconds: 10,
+                expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 }, // 1hr
+              },
+            },
+            {
+              // YouTube thumbnails — cache for 7 days
+              urlPattern: /^https:\/\/i\.ytimg\.com\//,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'yt-thumbnails',
+                expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              },
+            },
+          ],
+        },
+      }),
+    ],
 
     server: {
       port: 5173,
       open: true,
-      // Dev proxy: forwards /api calls to the backend
       proxy: {
-        '/api': {
-          target: apiUrl,
-          changeOrigin: true,
-          secure: true,
-        },
+        '/api': { target: apiUrl, changeOrigin: true, secure: true },
       },
     },
 
     build: {
       outDir: 'dist',
       sourcemap: false,
-      // Warn if any chunk exceeds 700 kB
       chunkSizeWarningLimit: 700,
       rollupOptions: {
         output: {
@@ -38,7 +83,6 @@ export default defineConfig(({ mode }) => {
       },
     },
 
-    // Make VITE_API_URL available everywhere in the app
     define: {
       __API_URL__: JSON.stringify(apiUrl),
     },

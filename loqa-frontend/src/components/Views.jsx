@@ -1,23 +1,85 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { gradStr, fmtTime, fmtViews, cacheSong, getCachedSong } from '../utils/constants.js';
 import { Svg, I, EqBars, Spinner } from './Icons.jsx';
 import { Thumb, SongRow, SongCard, Section, HScroll } from './UI.jsx';
 import { searchYT, getTrending, getGenre, getSuggestions } from '../utils/youtubeApi.js';
+import useLibraryStore from '../stores/libraryStore.js';
 
 const GENRES = ['Pop Hits','Hip Hop','R&B Soul','Rock Classics','Electronic','Bollywood','Jazz & Blues','Lo-Fi Chill','K-Pop','Latin','Indie','Country','Reggae','Afrobeats','Classical'];
+
+/* ── Lazy-loaded Genre Row ─────────────────────────────── */
+function LazyGenreRow({ genre, C, cur, playing, liked, onPlay, onLike, onCtx, go }) {
+  const [songs, setSongs]     = useState(null); // null = not loaded yet
+  const [loading, setLoading] = useState(false);
+  const rowRef = useRef(null);
+
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && songs === null && !loading) {
+          setLoading(true);
+          getGenre(genre).then(t => {
+            t.forEach(cacheSong);
+            setSongs(t);
+            setLoading(false);
+          });
+          obs.disconnect();
+        }
+      },
+      { rootMargin: '200px' } // load 200px before it scrolls into view
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [genre]); // eslint-disable-line
+
+  return (
+    <div ref={rowRef}>
+      {songs !== null && songs.length > 0 && (
+        <Section title={genre} C={C} action="More" onAction={() => go('genre', { genre })}>
+          <HScroll>
+            {songs.slice(0, 10).map(s => (
+              <SongCard key={s.id} song={s} current={cur} playing={playing}
+                liked={liked.includes(s.id)}
+                onPlay={t => onPlay(t, { toggle: true, list: songs, source: 'genre' })}
+                onLike={onLike} onCtx={onCtx} C={C} />
+            ))}
+          </HScroll>
+        </Section>
+      )}
+      {loading && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ marginBottom: 16 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: C.text, margin: 0 }}>{genre}</h2>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0' }}>
+            <div style={{ width: 24, height: 24, borderRadius: '50%', border: `2px solid ${C.accent}`,
+              borderTopColor: 'transparent', animation: 'spin 1s linear infinite' }} />
+          </div>
+        </div>
+      )}
+      {/* Sentinel for IntersectionObserver when not loaded yet */}
+      {songs === null && !loading && <div style={{ height: 1 }} />}
+    </div>
+  );
+}
 
 /* ── Home ─────────────────────────────────────────────── */
 export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLike, onCtx, go, isMobile,
                            recommendations, recsLoading, recsBasedOn, onRefreshRecs }) {
   const [trending,   setTrending]   = useState([]);
-  const [genreSongs, setGenreSongs] = useState({});
   const [loading,    setLoading]    = useState(true);
+
+  // Pull recent play history — already populated from sync
+  const recent = useLibraryStore(s => s.recent);
+  // Resolve IDs to song objects from cache
+  const recentSongs = recent.slice(0, 12).map(id => getCachedSong(id)).filter(Boolean);
 
   useEffect(() => {
     setLoading(true);
     getTrending().then(t => { setTrending(t); setLoading(false); });
-    getGenre('Pop Hits').then(t => setGenreSongs(g => ({ ...g, 'Pop Hits': t })));
-    getGenre('Hip Hop').then(t => setGenreSongs(g => ({ ...g, 'Hip Hop': t })));
+    // Genre rows are now loaded lazily via IntersectionObserver as the user scrolls
   }, []);
 
   const hour = new Date().getHours();
@@ -52,6 +114,33 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
           </button>
         </div>
       </div>
+
+      {/* ── Continue Listening (recently played) ─────────────── */}
+      {recentSongs.length > 0 && (
+        <Section title="▶ Continue Listening" C={C}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)', gap: 8 }}>
+            {recentSongs.slice(0, 6).map(s => (
+              <button key={s.id} onClick={() => onPlay(s, { toggle: true, list: recentSongs, source: 'recent' })}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                  background: cur?.id === s.id ? `rgba(${C.accentRgb},.15)` : C.surface,
+                  border: `1px solid ${cur?.id === s.id ? C.accent : C.border}`,
+                  borderRadius: 10, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                  transition: 'all .15s', minWidth: 0 }}
+                onMouseEnter={e => e.currentTarget.style.background = cur?.id === s.id ? `rgba(${C.accentRgb},.2)` : C.surface2}
+                onMouseLeave={e => e.currentTarget.style.background = cur?.id === s.id ? `rgba(${C.accentRgb},.15)` : C.surface}>
+                <Thumb song={s} size={40} radius={8} playing={cur?.id === s.id && playing} />
+                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: cur?.id === s.id ? C.accent : C.text,
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title}</div>
+                  <div style={{ fontSize: 11, color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {s.artist}
+                  </div>
+                </span>
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
 
       {/* ── Personalised Recommendations ─────────────────────────── */}
       {(recommendations?.length > 0 || recsLoading) && (
@@ -123,18 +212,10 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
         }
       </Section>
 
-      {/* ── Genre rows ───────────────────────────────────────────── */}
-      {GENRES.filter(g => genreSongs[g]?.length).map(genre => (
-        <Section key={genre} title={genre} C={C} action="More" onAction={() => go('genre', { genre })}>
-          <HScroll>
-            {(genreSongs[genre] || []).slice(0, 10).map(s => (
-              <SongCard key={s.id} song={s} current={cur} playing={playing}
-                liked={liked.includes(s.id)}
-                onPlay={t => onPlay(t, { toggle: true, list: genreSongs[genre], source: 'genre' })}
-                onLike={onLike} onCtx={onCtx} C={C} />
-            ))}
-          </HScroll>
-        </Section>
+      {/* ── Genre rows — lazy loaded via IntersectionObserver ───── */}
+      {GENRES.map(genre => (
+        <LazyGenreRow key={genre} genre={genre} C={C} cur={cur} playing={playing}
+          liked={liked} onPlay={onPlay} onLike={onLike} onCtx={onCtx} go={go} />
       ))}
 
       {/* Genre grid */}
@@ -164,6 +245,23 @@ export function SearchView({ C, song: cur, playing, liked, onPlay, onLike, onCtx
   const inputRef = useRef(null);
   const debRef   = useRef(null);
 
+  // Search history stored in localStorage
+  const [searchHistory, setSearchHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('lm_search_hist') || '[]'); } catch { return []; }
+  });
+
+  const addToHistory = (query) => {
+    if (!query.trim()) return;
+    const updated = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10);
+    setSearchHistory(updated);
+    localStorage.setItem('lm_search_hist', JSON.stringify(updated));
+  };
+
+  const clearHistory = () => {
+    setSearchHistory([]);
+    localStorage.removeItem('lm_search_hist');
+  };
+
   useEffect(() => {
     setLoading(true);
     if (initialQ) doSearch(initialQ);
@@ -174,6 +272,7 @@ export function SearchView({ C, song: cur, playing, liked, onPlay, onLike, onCtx
   const doSearch = async (query) => {
     if (!query.trim()) return;
     setLoading(true); setShowSug(false);
+    addToHistory(query.trim());
     const r = await searchYT(query);
     r.forEach(cacheSong);
     setResults(r); setLoading(false);
@@ -200,7 +299,7 @@ export function SearchView({ C, song: cur, playing, liked, onPlay, onLike, onCtx
           <Svg d={I.search} size={18} stroke={C.text3} />
           <input ref={inputRef} value={q} onChange={e => onInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); doSearch(q); setShowSug(false); } if (e.key === 'Escape') setShowSug(false); }}
-            onFocus={() => suggestions.length && setShowSug(true)}
+            onFocus={() => (suggestions.length || (!q && searchHistory.length)) && setShowSug(true)}
             placeholder="Search songs, artists, albums…" aria-label="Search music"
             style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: C.text, fontSize: 16, padding: '14px 0', fontFamily: 'inherit' }} />
           {q && <button onClick={() => { setQ(''); setResults([]); setShowSug(false); inputRef.current?.focus(); }}
@@ -213,12 +312,15 @@ export function SearchView({ C, song: cur, playing, liked, onPlay, onLike, onCtx
             Search
           </button>
         </div>
-        {showSug && suggestions.length > 0 && (
+
+        {/* Suggestions / History dropdown */}
+        {showSug && (suggestions.length > 0 || (!q && searchHistory.length > 0)) && (
           <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: C.surface,
             border: `1px solid ${C.border}`, borderRadius: 12, marginTop: 4, zIndex: 100,
             boxShadow: '0 8px 32px rgba(0,0,0,.2)', overflow: 'hidden' }}>
+            {/* Autocomplete suggestions */}
             {suggestions.map((s, i) => (
-              <button key={i} onClick={() => { setQ(s); doSearch(s); }}
+              <button key={`sug-${i}`} onClick={() => { setQ(s); doSearch(s); }}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px',
                   background: 'none', border: 'none', cursor: 'pointer', color: C.text, fontSize: 14, textAlign: 'left', fontFamily: 'inherit' }}
                 onMouseEnter={e => e.currentTarget.style.background = C.bg3}
@@ -226,6 +328,31 @@ export function SearchView({ C, song: cur, playing, liked, onPlay, onLike, onCtx
                 <Svg d={I.search} size={14} stroke={C.text3} />{s}
               </button>
             ))}
+            {/* Recent searches (shown when input is empty) */}
+            {!q && searchHistory.length > 0 && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '8px 16px 4px', borderTop: suggestions.length ? `1px solid ${C.border}` : 'none' }}>
+                  <span style={{ fontSize: 11, color: C.text3, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Recent Searches
+                  </span>
+                  <button onClick={clearHistory}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text3, fontSize: 11, padding: '2px 4px' }}>
+                    Clear
+                  </button>
+                </div>
+                {searchHistory.map((h, i) => (
+                  <button key={`hist-${i}`} onClick={() => { setQ(h); doSearch(h); setShowSug(false); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 16px',
+                      background: 'none', border: 'none', cursor: 'pointer', color: C.text2, fontSize: 14, textAlign: 'left', fontFamily: 'inherit' }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.bg3}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                    <Svg d={I.back} size={13} stroke={C.text3} />
+                    {h}
+                  </button>
+                ))}
+              </>
+            )}
           </div>
         )}
       </div>

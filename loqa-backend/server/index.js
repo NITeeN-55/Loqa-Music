@@ -3,6 +3,8 @@ import express       from 'express';
 import cors          from 'cors';
 import helmet        from 'helmet';
 import rateLimit     from 'express-rate-limit';
+import cookieParser  from 'cookie-parser';
+import compression   from 'compression';
 import { initDatabase }  from './db.js';
 import authMW             from './middleware/auth.js';
 import authRoutes         from './routes/auth.js';
@@ -10,13 +12,16 @@ import libraryRoutes      from './routes/library.js';
 import youtubeRoutes      from './routes/youtube.js';
 import recommendRoutes    from './routes/recommendations.js';
 import prefsRoutes        from './routes/preferences.js';
+import lyricsRoutes       from './routes/lyrics.js';
 
 const PORT   = process.env.PORT || 3000;
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
 const app = express();
 app.set('trust proxy', 1);
+app.use(compression()); // gzip all responses — saves ~70% on JSON payloads
 app.use(express.json({ limit: '2mb' }));
+app.use(cookieParser()); // needed for HttpOnly JWT cookie reading
 
 /* ── CORS ─────────────────────────────────────────────────────
    Must be registered BEFORE helmet and rate-limiting so that
@@ -101,6 +106,7 @@ app.use('/api/library',         libraryRoutes);
 app.use('/api/youtube',         youtubeRoutes);
 app.use('/api/recommendations', recommendRoutes);
 app.use('/api/preferences',     prefsRoutes);
+app.use('/api/lyrics',          lyricsRoutes);
 
 /* ── Health ────────────────────────────────────────────────── */
 app.get('/api/health', (_req, res) =>

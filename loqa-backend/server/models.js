@@ -15,8 +15,8 @@ const UserSchema = new Schema({
   avatar_ci:     { type: Number, default: 0 },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
-/* ── Playlists (songs embedded) ─────────────────────────── */
-const PlaylistSongSchema = new Schema({
+/* ── Playlists (metadata only — songs in separate collection) ── */
+const PlaylistSongEmbeddedSchema = new Schema({
   song_id:     { type: String, required: true },
   song_title:  { type: String, default: 'Unknown' },
   song_artist: { type: String, default: 'Unknown' },
@@ -32,8 +32,43 @@ const PlaylistSchema = new Schema({
   name:        { type: String, required: true, maxlength: 255 },
   description: { type: String, default: '' },
   ci:          { type: Number, default: 0 },
-  songs:       { type: [PlaylistSongSchema], default: [] },
+  // Legacy embedded songs array — kept for backward compat during migration.
+  // New songs are written to playlist_songs collection.
+  // TODO: run migration script, then drop this field.
+  songs:       { type: [PlaylistSongEmbeddedSchema], default: [] },
+  // Metadata fields for future sharing & analytics
+  is_public:        { type: Boolean, default: false },
+  is_collaborative: { type: Boolean, default: false },
+  followers_count:  { type: Number,  default: 0 },
+  cover_url:        { type: String,  default: '' },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
+
+/**
+ * PlaylistSongs — separate collection replacing embedded songs array.
+ *
+ * Benefits vs embedding:
+ *  - No 16MB document limit (supports playlists with 10,000+ songs)
+ *  - Efficient pagination via skip/limit on position index
+ *  - Supports collaborative playlists (added_by field)
+ *  - Atomic song add/remove without rewriting entire playlist doc
+ *
+ * Migration: run `scripts/migrate-playlist-songs.js` to copy existing
+ * embedded songs into this collection, then update library routes.
+ */
+const PlaylistSongsSchema = new Schema({
+  playlist_id: { type: String, required: true },
+  song_id:     { type: String, required: true },
+  song_title:  { type: String, default: 'Unknown' },
+  song_artist: { type: String, default: 'Unknown' },
+  song_thumb:  { type: String, default: '' },
+  song_dur:    { type: Number, default: 0 },
+  position:    { type: Number, required: true },
+  added_by:    { type: String, default: '' },  // user_id — for collaborative playlists
+  added_at:    { type: Date,   default: Date.now },
+}, { _id: false });
+
+PlaylistSongsSchema.index({ playlist_id: 1, position: 1 });
+PlaylistSongsSchema.index({ playlist_id: 1, song_id: 1 }, { unique: true });
 
 /* ── Liked Songs ────────────────────────────────────────── */
 const LikedSongSchema = new Schema({
@@ -59,6 +94,8 @@ const PlayHistorySchema = new Schema({
 });
 PlayHistorySchema.index({ user_id: 1, played_at: -1 });
 PlayHistorySchema.index({ user_id: 1, song_id: 1 });
+// TTL: auto-delete history entries older than 90 days (prevents unbounded growth)
+PlayHistorySchema.index({ played_at: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 90 });
 
 /* ── User Preferences ───────────────────────────────────── */
 const UserPrefsSchema = new Schema({
@@ -78,10 +115,13 @@ const SongCacheSchema = new Schema({
   duration:  { type: Number, default: 0 },
   cached_at: { type: Date,   default: Date.now },
 });
+// TTL: auto-delete song cache entries older than 30 days
+SongCacheSchema.index({ cached_at: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 30 });
 
-export const User        = mongoose.model('User',        UserSchema,       'users');
-export const Playlist    = mongoose.model('Playlist',    PlaylistSchema,   'playlists');
-export const LikedSong   = mongoose.model('LikedSong',   LikedSongSchema,  'liked_songs');
-export const PlayHistory = mongoose.model('PlayHistory', PlayHistorySchema,'play_history');
-export const UserPrefs   = mongoose.model('UserPrefs',   UserPrefsSchema,  'user_preferences');
-export const SongCache   = mongoose.model('SongCache',   SongCacheSchema,  'song_cache');
+export const User          = mongoose.model('User',          UserSchema,         'users');
+export const Playlist      = mongoose.model('Playlist',      PlaylistSchema,     'playlists');
+export const PlaylistSongs = mongoose.model('PlaylistSongs', PlaylistSongsSchema,'playlist_songs');
+export const LikedSong     = mongoose.model('LikedSong',     LikedSongSchema,    'liked_songs');
+export const PlayHistory   = mongoose.model('PlayHistory',   PlayHistorySchema,  'play_history');
+export const UserPrefs     = mongoose.model('UserPrefs',     UserPrefsSchema,    'user_preferences');
+export const SongCache     = mongoose.model('SongCache',     SongCacheSchema,    'song_cache');

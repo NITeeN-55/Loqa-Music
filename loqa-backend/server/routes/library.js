@@ -6,13 +6,22 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 router.use(requireAuth);
 
+/** Only allow http/https URLs for thumbnails — rejects javascript: and data: URIs */
+const sanitiseUrl = (url) => {
+  if (!url || typeof url !== 'string') return '';
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol) ? url : '';
+  } catch { return ''; }
+};
+
 /* Helper: normalise song fields from request body */
 const songFields = (s) => ({
   song_id:     s.id     || s.song_id     || '',
-  song_title:  s.title  || s.song_title  || 'Unknown',
-  song_artist: s.artist || s.song_artist || 'Unknown',
-  song_thumb:  s.thumbnail || s.thumb || s.song_thumb || '',
-  song_dur:    s.dur    || s.song_dur    || 0,
+  song_title:  String(s.title  || s.song_title  || 'Unknown').slice(0, 300),
+  song_artist: String(s.artist || s.song_artist || 'Unknown').slice(0, 200),
+  song_thumb:  sanitiseUrl(s.thumbnail || s.thumb || s.song_thumb || ''),
+  song_dur:    Number(s.dur || s.song_dur || 0) || 0,
 });
 
 /* Helper: silently cache a song (best-effort) */
@@ -27,9 +36,9 @@ const cacheS = (sf) =>
 router.get('/', async (req, res) => {
   try {
     const [playlists, liked, history] = await Promise.all([
-      Playlist.find({ user_id: req.userId }).sort({ created_at: -1 }),
-      LikedSong.find({ user_id: req.userId }).sort({ liked_at: -1 }),
-      PlayHistory.find({ user_id: req.userId }).sort({ played_at: -1 }).limit(50),
+      Playlist.find({ user_id: req.userId }).sort({ created_at: -1 }).lean(),
+      LikedSong.find({ user_id: req.userId }).sort({ liked_at: -1 }).lean(),
+      PlayHistory.find({ user_id: req.userId }).sort({ played_at: -1 }).limit(50).lean(),
     ]);
 
     res.json({
@@ -39,7 +48,7 @@ router.get('/', async (req, res) => {
         desc:      p.description,
         ci:        p.ci,
         createdAt: p.created_at,
-        songs:     p.songs.map(s => s.song_id),
+        songs:     (p.songs || []).map(s => s.song_id),
       })),
       liked: liked.map(l => ({
         id: l.song_id, title: l.song_title, artist: l.song_artist, thumbnail: l.song_thumb, dur: l.song_dur,
@@ -138,10 +147,21 @@ router.post('/likes', async (req, res) => {
 });
 
 router.get('/likes', async (req, res) => {
-  const rows = await LikedSong.find({ user_id: req.userId }).sort({ liked_at: -1 });
-  res.json(rows.map(l => ({
-    id: l.song_id, title: l.song_title, artist: l.song_artist, thumbnail: l.song_thumb, dur: l.song_dur,
-  })));
+  // Paginated: ?page=1&limit=50
+  const page  = Math.max(1, parseInt(req.query.page)  || 1);
+  const limit = Math.min(100, parseInt(req.query.limit) || 50);
+  const skip  = (page - 1) * limit;
+
+  const [rows, total] = await Promise.all([
+    LikedSong.find({ user_id: req.userId }).sort({ liked_at: -1 }).skip(skip).limit(limit).lean(),
+    LikedSong.countDocuments({ user_id: req.userId }),
+  ]);
+  res.json({
+    items: rows.map(l => ({
+      id: l.song_id, title: l.song_title, artist: l.song_artist, thumbnail: l.song_thumb, dur: l.song_dur,
+    })),
+    total, page, limit, pages: Math.ceil(total / limit),
+  });
 });
 
 /* ── Play history ─────────────────────────────────────── */
@@ -153,23 +173,53 @@ router.post('/history', async (req, res) => {
 });
 
 router.get('/history', async (req, res) => {
-  const rows = await PlayHistory.aggregate([
-    { $match: { user_id: req.userId } },
-    { $sort:  { played_at: -1 } },
-    { $group: {
-        _id:         '$song_id',
-        song_title:  { $first: '$song_title' },
-        song_artist: { $first: '$song_artist' },
-        song_thumb:  { $first: '$song_thumb' },
-        last_played: { $max:   '$played_at' },
+  // Paginated: ?page=1&limit=30&unique=true
+  const page   = Math.max(1, parseInt(req.query.page)  || 1);
+  const limit  = Math.min(100, parseInt(req.query.limit) || 30);
+  const unique = req.query.unique !== 'false'; // default: deduplicated
+
+  if (unique) {
+    // Aggregation: deduplicated by song, sorted by most-recently-played
+    const rows = await PlayHistory.aggregate([
+      { $match: { user_id: req.userId } },
+      { $sort:  { played_at: -1 } },
+      { $group: {
+          _id:         '$song_id',
+          song_title:  { $first: '$song_title' },
+          song_artist: { $first: '$song_artist' },
+          song_thumb:  { $first: '$song_thumb' },
+          song_dur:    { $first: '$song_dur' },
+          last_played: { $max:   '$played_at' },
+          play_count:  { $sum: 1 },
+        },
       },
-    },
-    { $sort:  { last_played: -1 } },
-    { $limit: 30 },
-  ]);
-  res.json(rows.map(h => ({
-    id: h._id, title: h.song_title, artist: h.song_artist, thumbnail: h.song_thumb,
-  })));
+      { $sort:  { last_played: -1 } },
+      { $skip:  (page - 1) * limit },
+      { $limit: limit },
+    ]);
+    return res.json({
+      items: rows.map(h => ({
+        id: h._id, title: h.song_title, artist: h.song_artist,
+        thumbnail: h.song_thumb, dur: h.song_dur,
+        lastPlayed: h.last_played, playCount: h.play_count,
+      })),
+      page, limit,
+    });
+  }
+
+  // Raw chronological history (for analytics)
+  const rows = await PlayHistory.find({ user_id: req.userId })
+    .sort({ played_at: -1 })
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .lean();
+  res.json({
+    items: rows.map(h => ({
+      id: h.song_id, title: h.song_title, artist: h.song_artist,
+      thumbnail: h.song_thumb, playedAt: h.played_at,
+    })),
+    page, limit,
+  });
 });
 
 /* ── Stats ────────────────────────────────────────────── */

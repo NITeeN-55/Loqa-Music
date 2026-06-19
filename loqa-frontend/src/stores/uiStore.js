@@ -50,13 +50,15 @@ const useUIStore = create((set, get) => ({
   /* ── Panels / Modals ─────────────────────────────────── */
   showQueue:    false,
   showSettings: false,
+  showNowPlaying: false,
   plModal:      null,
   ctxMenu:      null,
 
-  setShowQueue:    (v) => set({ showQueue:    !!v }),
-  setShowSettings: (v) => set({ showSettings: !!v }),
-  setPlModal:      (v) => set({ plModal: v || null }),
-  setCtxMenu:      (v) => set({ ctxMenu: v || null }),
+  setShowQueue:      (v) => set({ showQueue:    !!v }),
+  setShowSettings:   (v) => set({ showSettings: !!v }),
+  setShowNowPlaying: (v) => set({ showNowPlaying: typeof v === 'function' ? v(get().showNowPlaying) : !!v }),
+  setPlModal:        (v) => set({ plModal: v || null }),
+  setCtxMenu:        (v) => set({ ctxMenu: v || null }),
 
   openCtxMenu: (e, song) => {
     if (!e || !song) return;
@@ -83,6 +85,17 @@ const useUIStore = create((set, get) => ({
     set({ settings: merged });
     saveLS({ ...loadLS(), settings: merged });
   },
+
+  /* ── Sleep Timer ─────────────────────────────────────── */
+  sleepTimerEnd: null,   // timestamp when timer expires (null = off)
+  setSleepTimer: (minutes) => {
+    if (!minutes) {
+      set({ sleepTimerEnd: null });
+      return;
+    }
+    set({ sleepTimerEnd: Date.now() + minutes * 60_000 });
+  },
+  clearSleepTimer: () => set({ sleepTimerEnd: null }),
 }));
 
 export default useUIStore;

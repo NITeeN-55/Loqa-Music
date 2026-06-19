@@ -16,7 +16,10 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 router.use(requireAuth);
 
-const IK   = process.env.INNERTUBE_API_KEY || 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
+const IK = process.env.INNERTUBE_API_KEY;
+if (!IK) {
+  console.error('[recommendations] INNERTUBE_API_KEY not set — recommendation searches will fail.');
+}
 const BASE = 'https://www.youtube.com/youtubei/v1';
 const CTX  = {
   context: {
@@ -78,6 +81,20 @@ function weightedShuffle(arr) {
     .map(item => ({ ...item, _r: Math.random() }))
     .sort((a, b) => a._r - b._r)
     .map(({ _r, ...item }) => item);
+}
+
+/** Fetch up to 5 similar artists from Last.fm (free, no auth if key set) */
+async function getLastFmSimilar(artist) {
+  const key = process.env.LASTFM_API_KEY;
+  if (!key || !artist) return [];
+  try {
+    const url = `https://ws.audioscrobbler.com/2.0/?method=artist.getSimilar`
+      + `&artist=${encodeURIComponent(artist)}&api_key=${key}&format=json&limit=5`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (!r.ok) return [];
+    const d = await r.json();
+    return (d.similarartists?.artist || []).map(a => a.name).filter(Boolean);
+  } catch { return []; }
 }
 
 router.get('/', async (req, res) => {
@@ -146,7 +163,7 @@ router.get('/', async (req, res) => {
       .map(([name]) => name)
       .slice(0, 7);
 
-    /* ── 4. Build search queries ─────────────────────────────── */
+    /* ── 4. Build search queries — incl. Last.fm discovery ─── */
     const queries = [];
     if (seedArtist) {
       queries.push(`${seedArtist} best songs`);
@@ -154,6 +171,29 @@ router.get('/', async (req, res) => {
     }
     for (const a of topArtists.slice(0, 5)) {
       if (a !== seedArtist) queries.push(`${a} music hits`);
+    }
+
+    // Last.fm: fetch similar artists for top 2 scored artists → genuine discovery
+    const discoveryArtists = [];
+    if (topArtists.length > 0) {
+      const [sim1, sim2] = await Promise.all([
+        getLastFmSimilar(topArtists[0]),
+        topArtists[1] ? getLastFmSimilar(topArtists[1]) : Promise.resolve([]),
+      ]);
+      // Only add artists the user hasn't heard (not in artistScore)
+      const newArtists = [...sim1, ...sim2]
+        .filter(a => !artistScore.has(a))
+        .slice(0, 3);
+      for (const a of newArtists) {
+        queries.push(`${a} music hits`);
+        discoveryArtists.push(a);
+      }
+    }
+
+    // 20% novelty: inject 1-2 random genre searches to surface unknown artists
+    const NOVELTY_GENRES = ['indie music 2024', 'emerging artists pop', 'underground hip hop'];
+    if (Math.random() < 0.2) {
+      queries.push(NOVELTY_GENRES[Math.floor(Math.random() * NOVELTY_GENRES.length)]);
     }
     if (topArtists.length < 2) {
       queries.push('top music hits 2024', 'trending songs this week');
@@ -184,15 +224,26 @@ router.get('/', async (req, res) => {
 
     const filtered = result.filter(s => !recentIds.has(s.id));
 
-    /* ── 8. Weighted shuffle + assign gradient colours ────────── */
-    const shuffled = weightedShuffle(filtered)
+    /* ── 8. Diversity cap: max 2 songs per artist ────────────── */
+    const artistCount = new Map();
+    const diverse = filtered.filter(s => {
+      const a = (s.artist || '').toLowerCase();
+      const count = artistCount.get(a) || 0;
+      if (count >= 2) return false;
+      artistCount.set(a, count + 1);
+      return true;
+    });
+
+    /* ── 9. Weighted shuffle + assign gradient colours ────────── */
+    const shuffled = weightedShuffle(diverse)
       .slice(0, limit)
       .map((s, i) => ({ ...s, ci: i % 8, ai: i }));
 
     res.json({
-      items:    shuffled,
-      basedOn:  topArtists.slice(0, 4),
-      seedUsed: !!seedArtist,
+      items:           shuffled,
+      basedOn:         topArtists.slice(0, 4),
+      discoveryArtists: discoveryArtists,
+      seedUsed:        !!seedArtist,
     });
   } catch (err) {
     console.error('[recommendations]', err.message);

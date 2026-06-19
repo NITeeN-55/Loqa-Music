@@ -1,6 +1,7 @@
 import React,{useState,useRef,useEffect}from'react';
 import{gradStr,grad,fmtTime,fmtViews}from'../utils/constants.js';
 import{Svg,I,EqBars,Spinner}from'./Icons.jsx';
+import usePlayerStore from'../stores/playerStore.js';
 
 /* ── Thumbnail ─────────────────────────────────────────── */
 export function Thumb({song,size=48,radius=10,playing=false}){
@@ -9,6 +10,7 @@ export function Thumb({song,size=48,radius=10,playing=false}){
   if(song?.thumbnail&&!err)return(
     <div style={{width:size,height:size,borderRadius:radius,overflow:'hidden',flexShrink:0,position:'relative'}}>
       <img src={song.thumbnail} alt="" onError={()=>setErr(true)}
+        loading="lazy" decoding="async"
         style={{width:'100%',height:'100%',objectFit:'cover'}}/>
       {playing&&<div style={{position:'absolute',inset:0,background:'rgba(0,0,0,.45)',display:'flex',alignItems:'center',justifyContent:'center'}}>
         <EqBars size={size*0.35} color='#fff' playing/>
@@ -26,7 +28,7 @@ export function Thumb({song,size=48,radius=10,playing=false}){
 }
 
 /* ── SongRow ───────────────────────────────────────────── */
-export function SongRow({song,idx,current,playing,liked,onPlay,onLike,onCtx,C,showIdx=true,showDur=true}){
+export const SongRow = React.memo(function SongRow({song,idx,current,playing,liked,onPlay,onLike,onCtx,C,showIdx=true,showDur=true}){
   const[hov,setHov]=useState(false);
   const active=current?.id===song.id;
   return(
@@ -65,10 +67,10 @@ export function SongRow({song,idx,current,playing,liked,onPlay,onLike,onCtx,C,sh
       </div>
     </div>
   );
-}
+});
 
 /* ── SongCard (grid card) ──────────────────────────────── */
-export function SongCard({song,current,playing,liked,onPlay,onLike,onCtx,C}){
+export const SongCard = React.memo(function SongCard({song,current,playing,liked,onPlay,onLike,onCtx,C}){
   const[hov,setHov]=useState(false);
   const active=current?.id===song.id;
   return(
@@ -100,7 +102,7 @@ export function SongCard({song,current,playing,liked,onPlay,onLike,onCtx,C}){
       </div>
     </div>
   );
-}
+});
 
 /* ── Section ───────────────────────────────────────────── */
 export function Section({title,action,onAction,children,C}){
@@ -227,9 +229,13 @@ function injectPlayerStyles() {
   document.head.appendChild(s);
 }
 
-export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,repeat,liked,
+export function PlayerBar({song,playing,duration,volume,muted,shuffle,repeat,liked,
   onTogglePlay,onPrev,onNext,onSeek,onVolume,onMute,onShuffle,onRepeat,onLike,
-  onToggleLyrics,onToggleQueue,showLyrics,showQueue,isMobile,C,playlists,onAddToPlaylist}) {
+  onToggleLyrics,onToggleQueue,onOpenNowPlaying,onSleepTimer,showLyrics,showQueue,isMobile,C,playlists,onAddToPlaylist}) {
+
+  // Subscribe to progress directly here so ONLY PlayerBar re-renders on each progress tick
+  // (not the entire App component tree). This fixes the P10 critical re-render issue.
+  const progress = usePlayerStore(s => s.progress);
 
   const {barRef,down,drag} = useDragSeekLocal(onSeek);
   const [plPop, setPlPop]   = useState(false);
@@ -296,8 +302,8 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
         <div style={{height:'100%', background:`linear-gradient(90deg,${c1},${c2})`, width:`${progress}%`, transition:'width .5s linear'}}/>
       </div>
       <div style={{display:'flex', alignItems:'center', gap:10, padding:'10px 14px 13px'}}>
-        {/* Thumbnail with glow ring */}
-        <div style={{position:'relative', flexShrink:0}}>
+        {/* Thumbnail - clickable to open full-screen player */}
+        <div style={{position:'relative', flexShrink:0}} onClick={onOpenNowPlaying}>
           <Thumb song={song} size={46} radius={11} playing={playing}/>
           {playing && <div style={{
             position:'absolute', inset:-3, borderRadius:14,
@@ -305,8 +311,8 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
             animation:'loqa-pulse 2s ease infinite', pointerEvents:'none',
           }}/>}
         </div>
-        {/* Info */}
-        <div style={{flex:1, minWidth:0}}>
+        {/* Info - clickable to open full-screen player */}
+        <div style={{flex:1, minWidth:0, cursor:'pointer'}} onClick={onOpenNowPlaying}>
           <div style={{fontSize:13,fontWeight:700,color:C.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{song.title}</div>
           <div style={{fontSize:11,color:C.text3,marginTop:2}}>{song.artist}</div>
         </div>
@@ -376,8 +382,9 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
             }}/>
           </div>
 
-          {/* Title + artist */}
-          <div style={{minWidth:0, flex:1}}>
+          {/* Title + artist — clickable to expand full-screen player */}
+          <div style={{minWidth:0, flex:1, cursor:'pointer'}} onClick={onOpenNowPlaying}
+            title="Open full player">
             <div title={song.title} style={{
               fontSize:13.5, fontWeight:700, color:C.text,
               whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
@@ -574,6 +581,25 @@ export function PlayerBar({song,playing,progress,duration,volume,muted,shuffle,r
           {/* Lyrics & Queue pill buttons */}
           <PillBtn label="Lyrics" icon={I.lyrics} active={showLyrics} onClick={onToggleLyrics} C={C}/>
           <PillBtn label="Queue"  icon={I.queue}  active={showQueue}  onClick={onToggleQueue}  C={C}/>
+
+          {/* Expand / Full player */}
+          <button className="loqa-ctrl" onClick={onOpenNowPlaying} aria-label="Open full player"
+            title="Full screen player"
+            style={{background:'none',border:'none',cursor:'pointer',color:C.text3,padding:5,flexShrink:0,opacity:.65}}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+              <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+            </svg>
+          </button>
+
+          {/* Sleep timer */}
+          {onSleepTimer && (
+            <button className="loqa-ctrl" onClick={onSleepTimer} aria-label="Sleep timer"
+              title="Sleep timer"
+              style={{background:'none',border:'none',cursor:'pointer',color:C.text3,padding:5,flexShrink:0,opacity:.65}}>
+              <span style={{fontSize:14}}>😴</span>
+            </button>
+          )}
 
           {/* Thin separator */}
           <div style={{width:1, height:18, background:C.border, margin:'0 5px', flexShrink:0}}/>

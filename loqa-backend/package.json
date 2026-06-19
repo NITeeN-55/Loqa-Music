@@ -19,7 +19,9 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.4.0",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "cookie-parser": "^1.4.7",
+    "compression": "^1.7.5"
   },
   "engines": {
     "node": ">=20.0.0"

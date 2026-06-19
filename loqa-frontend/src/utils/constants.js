@@ -32,14 +32,44 @@ const LS='lm2';
 export const loadLS=()=>{try{return JSON.parse(localStorage.getItem(LS))||{};}catch{return{};}};
 export const saveLS=(d)=>{try{localStorage.setItem(LS,JSON.stringify(d));}catch{}};
 
-let _cache={};
-try{_cache=JSON.parse(localStorage.getItem('lm_cache'))||{};}catch{}
-export function cacheSong(s){
-  if(!s?.id)return;
-  _cache[s.id]={id:s.id,title:s.title||'Unknown',artist:s.artist||'Unknown',
-    album:s.album||'YouTube',dur:s.dur||0,ci:s.ci??0,ai:s.ai??0,
-    thumbnail:s.thumbnail||'',views:s.views||'',isYoutube:true};
-  try{const k=Object.keys(_cache);if(k.length>300)k.slice(0,100).forEach(x=>delete _cache[x]);
-    localStorage.setItem('lm_cache',JSON.stringify(_cache));}catch{}
+// L1: in-memory cache (instant reads, lost on page reload)
+// L2: IndexedDB via idbCacheSong/idbGetSong (persistent, async, replaces localStorage)
+// L3: localStorage fallback (kept for initial hydration only)
+let _cache = {};
+try { _cache = JSON.parse(localStorage.getItem('lm_cache')) || {}; } catch {}
+
+// Import IDB cache functions lazily to avoid circular deps
+// (indexedDB.js does not import from constants.js)
+let _idbCacheSong = null;
+let _idbGetSong   = null;
+import('./indexedDB.js').then(m => {
+  _idbCacheSong = m.idbCacheSong;
+  _idbGetSong   = m.idbGetSong;
+  // Seed L1 cache from IDB on startup (replaces localStorage hydration over time)
+  m.idbGetAllSongs && m.idbGetAllSongs().then(songs => {
+    songs.forEach(s => { if (s?.id) _cache[s.id] = s; });
+  });
+  // Evict old IDB entries in the background
+  m.idbEvictOldSongs && m.idbEvictOldSongs(30);
+}).catch(() => {}); // IDB not available (e.g. private browsing) — silent fallback
+
+export function cacheSong(s) {
+  if (!s?.id) return;
+  const entry = {
+    id: s.id, title: s.title || 'Unknown', artist: s.artist || 'Unknown',
+    album: s.album || 'YouTube', dur: s.dur || 0, ci: s.ci ?? 0, ai: s.ai ?? 0,
+    thumbnail: s.thumbnail || '', views: s.views || '', isYoutube: true,
+  };
+  // L1: update in-memory immediately
+  _cache[s.id] = entry;
+  // L2: persist to IndexedDB asynchronously (fire-and-forget)
+  _idbCacheSong?.(entry);
+  // L3: localStorage fallback — trimmed to 200 entries to avoid 5MB limit
+  try {
+    const k = Object.keys(_cache);
+    if (k.length > 200) k.slice(0, 50).forEach(x => delete _cache[x]);
+    localStorage.setItem('lm_cache', JSON.stringify(_cache));
+  } catch { /* quota exceeded — IDB is the real store anyway */ }
 }
-export const getCachedSong=(id)=>id?_cache[id]||null:null;
+
+export const getCachedSong = (id) => id ? (_cache[id] || null) : null;
