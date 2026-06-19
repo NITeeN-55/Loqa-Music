@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { gradStr, fmtTime, fmtViews, cacheSong, getCachedSong } from '../utils/constants.js';
-import { Svg, I, EqBars, Spinner } from './Icons.jsx';
-import { Thumb, SongRow, SongCard, Section, HScroll } from './UI.jsx';
+import { Svg, I, EqBars, Spinner } from '../components/Icons.jsx';
+import { Thumb, SongRow, SongCard, Section, HScroll } from '../components/UI.jsx';
 import { searchYT, getTrending, getGenre, getSuggestions } from '../utils/youtubeApi.js';
 import useLibraryStore from '../stores/libraryStore.js';
 
