@@ -33,3 +33,5 @@ export function GenreView({ C, genre, song: cur, playing, liked, onPlay, onLike,
 }
 
 /* ── Library ──────────────────────────────────────────── */
+
+export default GenreView;

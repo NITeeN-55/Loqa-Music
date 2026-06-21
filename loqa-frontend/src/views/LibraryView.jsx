@@ -105,3 +105,5 @@ function PlCard({ pl, onOpen, onEdit, onDelete, C }) {
 }
 
 /* ── Playlist detail ──────────────────────────────────── */
+
+export default LibraryView;

@@ -236,3 +236,5 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
 }
 
 /* ── Search ───────────────────────────────────────────── */
+
+export default HomeView;

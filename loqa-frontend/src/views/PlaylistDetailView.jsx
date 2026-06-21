@@ -171,3 +171,5 @@ export function PlaylistDetailView({ C, playlist, song: cur, playing, liked, onP
     </div>
   );
 }
+
+export default PlaylistDetailView;

@@ -192,3 +192,5 @@ export function SearchView({ C, song: cur, playing, liked, onPlay, onLike, onCtx
 }
 
 /* ── Genre ────────────────────────────────────────────── */
+
+export default SearchView;
