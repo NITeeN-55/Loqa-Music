@@ -295,6 +295,8 @@ export function PlayerBar({song,playing,duration,volume,muted,shuffle,repeat,lik
         backdropFilter:'blur(32px)', WebkitBackdropFilter:'blur(32px)',
         flexShrink: 0,
         boxShadow: `0 -8px 32px rgba(0,0,0,.35)`,
+        width:'100%',
+        borderTop:`1px solid ${C.border}`,
       }}>
       {/* Accent top line */}
       <div style={{height:2, background:`linear-gradient(90deg,transparent,${c1} 30%,${c2} 70%,transparent)`, opacity:.7}}/>

@@ -122,6 +122,118 @@ button,input,textarea,select{max-width:100%}
   .loqa-now-playing{padding-left:0!important;padding-right:0!important}
 }
 
+/* =========================================================
+   MOBILE VIEWPORT V2 — fixed player + fixed bottom nav
+   Prevents the player/nav from visually sitting on top of
+   Home/Recommendation cards while keeping the content scrollable.
+   ========================================================= */
+@media (max-width:900px){
+  html, body, #root {
+    width:100%;
+    min-width:0;
+    height:100%;
+    min-height:100%;
+    overflow:hidden;
+  }
+  .loqa-app-shell {
+    width:100%;
+    height:100svh !important;
+    min-height:100svh !important;
+    max-height:100svh !important;
+    overflow:hidden !important;
+  }
+  .loqa-main-column {
+    position:relative !important;
+    width:100% !important;
+    height:100svh !important;
+    min-height:0 !important;
+    overflow:hidden !important;
+  }
+  .loqa-header {
+    flex:0 0 auto !important;
+    position:relative !important;
+  }
+  .loqa-main {
+    height:auto !important;
+    min-height:0 !important;
+    flex:1 1 auto !important;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    overscroll-behavior-y:contain;
+    -webkit-overflow-scrolling:touch;
+    padding-top:12px !important;
+    padding-left:max(10px, env(safe-area-inset-left)) !important;
+    padding-right:max(10px, env(safe-area-inset-right)) !important;
+    padding-bottom:calc(150px + env(safe-area-inset-bottom)) !important;
+    scrollbar-gutter:auto;
+  }
+  /* Mobile player is a true viewport-level dock. */
+  .loqa-main-column > .loqa-player-mobile {
+    position:fixed !important;
+    left:0 !important;
+    right:0 !important;
+    bottom:64px !important;
+    width:100vw !important;
+    max-width:100vw !important;
+    min-height:60px !important;
+    height:auto !important;
+    flex:none !important;
+    z-index:100 !important;
+    border-top:1px solid var(--border) !important;
+    box-shadow:0 -10px 28px rgba(0,0,0,.38) !important;
+  }
+  .loqa-player-mobile > div:nth-child(3) {
+    min-width:0 !important;
+  }
+  .loqa-player-mobile button {
+    flex:0 0 auto;
+  }
+  /* Bottom navigation sits below the player, never over content. */
+  .loqa-mobile-nav {
+    position:fixed !important;
+    left:0 !important;
+    right:0 !important;
+    bottom:0 !important;
+    width:100vw !important;
+    height:64px !important;
+    min-height:64px !important;
+    max-height:64px !important;
+    padding:4px max(8px, env(safe-area-inset-left)) max(4px, env(safe-area-inset-bottom)) !important;
+    box-sizing:border-box !important;
+    z-index:120 !important;
+    overflow:hidden !important;
+  }
+  .loqa-mobile-nav button {
+    min-width:0 !important;
+    width:20% !important;
+    height:56px !important;
+    padding:4px 2px !important;
+    gap:2px !important;
+    flex:1 1 20% !important;
+  }
+  .loqa-mobile-nav button span {
+    display:block !important;
+    max-width:70px !important;
+    font-size:10px !important;
+    line-height:1.05 !important;
+  }
+  .home-view {
+    width:100% !important;
+    max-width:none !important;
+    overflow:visible !important;
+  }
+  .home-continue-grid {
+    grid-template-columns:minmax(0,1fr) !important;
+  }
+  .home-continue-grid > button {
+    width:100% !important;
+  }
+  .home-hero {
+    margin-left:0 !important;
+    margin-right:0 !important;
+  }
+}
+
 /* Mobile viewport: keep content, player and navigation inside the viewport. */
 @media (max-width:900px){
   .loqa-app-shell{height:100dvh!important;min-height:100dvh!important}
@@ -184,4 +296,24 @@ button,input,textarea,select{max-width:100%}
 /* Reduced motion accessibility */
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+
+/* Final mobile polish */
+@media (max-width:560px){
+  .loqa-player-mobile > div:nth-child(3){padding:8px 10px 9px !important;gap:7px !important;}
+  .loqa-player-mobile .loqa-like{display:none !important;}
+  .loqa-player-mobile .loqa-ctrl{padding:5px !important;}
+  .loqa-player-mobile .loqa-play{width:42px !important;height:42px !important;}
+  .loqa-player-mobile img{max-width:none !important;}
+  .loqa-mobile-nav{padding-left:6px !important;padding-right:6px !important;}
+  .loqa-main{padding-bottom:calc(146px + env(safe-area-inset-bottom)) !important;}
+  .home-trending-grid{grid-template-columns:1fr !important;}
+  .home-hero-actions{grid-template-columns:1fr !important;}
+}
+@media (max-width:380px){
+  .loqa-player-mobile > div:nth-child(3){gap:4px !important;padding-left:8px !important;padding-right:8px !important;}
+  .loqa-player-mobile .loqa-ctrl svg{width:18px;height:18px;}
+  .loqa-player-mobile .loqa-play{width:40px !important;height:40px !important;}
+  .loqa-mobile-nav button span{font-size:9px !important;}
+  .loqa-main{padding-bottom:calc(144px + env(safe-area-inset-bottom)) !important;}
 }
