@@ -73,8 +73,21 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
 
   // Pull recent play history — already populated from sync
   const recent = useLibraryStore(s => s.recent);
-  // Resolve IDs to song objects from cache
-  const recentSongs = recent.slice(0, 12).map(id => getCachedSong(id)).filter(Boolean);
+
+  // Resolve cached songs and perform a final UI-level dedupe. This protects
+  // Continue Listening from legacy duplicate rows or stale localStorage.
+  const recentSongs = React.useMemo(() => {
+    const seen = new Set();
+    const result = [];
+    for (const id of (Array.isArray(recent) ? recent : [])) {
+      const song = getCachedSong(id);
+      if (!song?.id || seen.has(song.id)) continue;
+      seen.add(song.id);
+      result.push(song);
+      if (result.length >= 12) break;
+    }
+    return result;
+  }, [recent]);
 
   useEffect(() => {
     setLoading(true);
@@ -120,7 +133,7 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
         <Section title="▶ Continue Listening" C={C}>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)', gap: 8 }}>
             {recentSongs.slice(0, 6).map(s => (
-              <button key={s.id} onClick={() => onPlay(s, { toggle: true, list: recentSongs, source: 'recent' })}
+              <button key={`continue-${s.id}`} onClick={() => onPlay(s, { toggle: true, list: recentSongs, source: 'recent' })}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
                   background: cur?.id === s.id ? `rgba(${C.accentRgb},.15)` : C.surface,
                   border: `1px solid ${cur?.id === s.id ? C.accent : C.border}`,

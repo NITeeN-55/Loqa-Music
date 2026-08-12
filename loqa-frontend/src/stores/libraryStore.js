@@ -39,8 +39,20 @@ const useLibraryStore = create((set, get) => ({
       d.liked.forEach(s => cacheSong(s));
       d.history.forEach(s => cacheSong(s));
 
-      const likedIds   = d.liked.map(s => s.id);
-      const recentIds  = d.history.map(s => s.id);
+      const likedIds = [...new Set((d.liked || []).map(s => s.id).filter(Boolean))];
+
+      // Keep Continue Listening strictly unique even if an older account
+      // already contains duplicate history rows on the server.
+      const seenRecent = new Set();
+      const recentIds = [];
+      for (const item of (d.history || [])) {
+        const id = item?.id;
+        if (!id || seenRecent.has(id)) continue;
+        seenRecent.add(id);
+        recentIds.push(id);
+        cacheSong(item);
+        if (recentIds.length >= 50) break;
+      }
 
       set({
         playlists: d.playlists,
@@ -62,7 +74,8 @@ const useLibraryStore = create((set, get) => ({
   addRecent: (id) => {
     if (!id) return;
     set(s => {
-      const recent = [id, ...s.recent.filter(x => x !== id)].slice(0, 50);
+      const existing = Array.isArray(s.recent) ? s.recent : [];
+      const recent = [id, ...existing.filter(x => x !== id)].slice(0, 50);
       saveLS({ ...loadLS(), recent });
       return { recent };
     });

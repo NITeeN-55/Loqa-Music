@@ -38,7 +38,21 @@ router.get('/', async (req, res) => {
     const [playlists, liked, history] = await Promise.all([
       Playlist.find({ user_id: req.userId }).sort({ created_at: -1 }).lean(),
       LikedSong.find({ user_id: req.userId }).sort({ liked_at: -1 }).lean(),
-      PlayHistory.find({ user_id: req.userId }).sort({ played_at: -1 }).limit(50).lean(),
+      PlayHistory.aggregate([
+        { $match: { user_id: req.userId } },
+        { $sort: { played_at: -1 } },
+        { $group: {
+            _id: '$song_id',
+            song_title: { $first: '$song_title' },
+            song_artist: { $first: '$song_artist' },
+            song_thumb: { $first: '$song_thumb' },
+            song_dur: { $first: '$song_dur' },
+            played_at: { $first: '$played_at' },
+          },
+        },
+        { $sort: { played_at: -1 } },
+        { $limit: 50 },
+      ]),
     ]);
 
     res.json({
@@ -167,9 +181,33 @@ router.get('/likes', async (req, res) => {
 /* ── Play history ─────────────────────────────────────── */
 router.post('/history', async (req, res) => {
   const sf = songFields(req.body);
-  await PlayHistory.create({ user_id: req.userId, ...sf, played_at: new Date() });
+  if (!sf.song_id) return res.status(400).json({ ok: false, error: 'song_id required' });
+
+  const now = new Date();
+  const dedupeSince = new Date(now.getTime() - 8 * 60 * 1000);
+
+  // Do not create another history row when the same track is reported again
+  // within the same short listening window (common with React remounts,
+  // player callbacks, browser focus changes, or repeated play/pause events).
+  const recent = await PlayHistory.findOne({
+    user_id: req.userId,
+    song_id: sf.song_id,
+    played_at: { $gte: dedupeSince },
+  }).sort({ played_at: -1 });
+
+  if (recent) {
+    recent.played_at = now;
+    recent.song_title = sf.song_title;
+    recent.song_artist = sf.song_artist;
+    recent.song_thumb = sf.song_thumb;
+    recent.song_dur = sf.song_dur;
+    await recent.save();
+  } else {
+    await PlayHistory.create({ user_id: req.userId, ...sf, played_at: now });
+  }
+
   cacheS(sf);
-  res.json({ ok: true });
+  res.json({ ok: true, deduplicated: Boolean(recent) });
 });
 
 router.get('/history', async (req, res) => {
