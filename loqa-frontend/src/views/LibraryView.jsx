@@ -8,8 +8,8 @@ import useLibraryStore from '../stores/libraryStore.js';
 const GENRES = ['Pop Hits','Hip Hop','R&B Soul','Rock Classics','Electronic','Bollywood','Jazz & Blues','Lo-Fi Chill','K-Pop','Latin','Indie','Country','Reggae','Afrobeats','Classical'];
 export function LibraryView({ C, playlists, liked, onOpen, onDelete, onEdit, onCreate }) {
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div className="library-view">
+      <div className="library-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <h2 style={{ fontSize: 22, fontWeight: 900, color: C.text, margin: 0 }}>Your Library</h2>
         <button onClick={onCreate}
           style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px',
@@ -52,7 +52,7 @@ export function LibraryView({ C, playlists, liked, onOpen, onDelete, onEdit, onC
             Create first playlist
           </button>
           {/* Tip cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 40, textAlign: 'left' }}>
+          <div className="library-tip-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 40, textAlign: 'left' }}>
             {[
               { icon: '🔍', title: 'Search', desc: 'Find any song on YouTube' },
               { icon: '❤️', title: 'Like', desc: 'Save favourites instantly' },

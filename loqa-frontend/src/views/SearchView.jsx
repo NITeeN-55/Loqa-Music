@@ -81,7 +81,7 @@ export function SearchView({ C, song: cur, playing, liked, onPlay, onLike, onCtx
   };
 
   return (
-    <div>
+    <div className="search-view">
       {/* Search input */}
       <div style={{ position: 'relative', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px',

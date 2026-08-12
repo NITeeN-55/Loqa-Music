@@ -194,7 +194,7 @@ export default function NowPlayingView({
     : `linear-gradient(160deg, ${C.bg3} 0%, ${C.bg} 100%)`;
 
   const modal = (
-    <div
+    <div className="loqa-now-playing"
       onTouchStart={isMobile ? onTouchStart : undefined}
       onTouchEnd={isMobile ? onTouchEnd : undefined}
       style={{

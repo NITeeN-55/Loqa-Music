@@ -107,7 +107,7 @@ export const SongCard = React.memo(function SongCard({song,current,playing,liked
 /* ── Section ───────────────────────────────────────────── */
 export function Section({title,action,onAction,children,C}){
   return(
-    <div style={{marginBottom:32}}>
+    <div className="loqa-section" style={{marginBottom:32}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
         <h2 style={{fontSize:18,fontWeight:800,color:C.text,margin:0}}>{title}</h2>
         {action&&<button onClick={onAction}
@@ -123,7 +123,7 @@ export function Section({title,action,onAction,children,C}){
 /* ── HScroll grid ──────────────────────────────────────── */
 export function HScroll({children}){
   return(
-    <div style={{display:'grid',gridAutoFlow:'column',gridAutoColumns:'160px',gap:14,
+    <div className="loqa-hscroll" style={{display:'grid',gridAutoFlow:'column',gridAutoColumns:'160px',gap:14,
       overflowX:'auto',paddingBottom:8,scrollSnapType:'x mandatory'}}>
       {React.Children.map(children,c=>c?<div style={{scrollSnapAlign:'start'}}>{c}</div>:null)}
     </div>
@@ -288,7 +288,7 @@ export function PlayerBar({song,playing,duration,volume,muted,shuffle,repeat,lik
 
   /* ── MOBILE ── */
   if (isMobile) return (
-    <div role="region" aria-label="Music player" onTouchStart={swStart} onTouchEnd={swEnd}
+    <div className="loqa-player-mobile" role="region" aria-label="Music player" onTouchStart={swStart} onTouchEnd={swEnd}
       style={{
         background: C.player,
         backdropFilter:'blur(32px)', WebkitBackdropFilter:'blur(32px)',
@@ -348,7 +348,7 @@ export function PlayerBar({song,playing,duration,volume,muted,shuffle,repeat,lik
 
   /* ── DESKTOP ── */
   return (
-    <div role="region" aria-label="Music player" style={{
+    <div className="loqa-player-desktop" role="region" aria-label="Music player" style={{
       background: C.player,
       backdropFilter: 'blur(40px)', WebkitBackdropFilter: 'blur(40px)',
       borderTop: `1px solid rgba(255,255,255,.045)`,
@@ -363,10 +363,10 @@ export function PlayerBar({song,playing,duration,volume,muted,shuffle,repeat,lik
         opacity: .5, pointerEvents:'none',
       }}/>
 
-      <div style={{height:86, display:'flex', alignItems:'center', padding:'0 28px', gap:20}}>
+      <div className="loqa-player-desktop-row" style={{height:86, display:'flex', alignItems:'center', padding:'0 28px', gap:20}}>
 
         {/* ── Left: Song info ── */}
-        <div style={{width:270, display:'flex', alignItems:'center', gap:14, flexShrink:0}}>
+        <div className="loqa-player-left" style={{width:270, display:'flex', alignItems:'center', gap:14, flexShrink:0}}>
 
           {/* Thumbnail + glow */}
           <div style={{position:'relative', flexShrink:0}}>
@@ -457,7 +457,7 @@ export function PlayerBar({song,playing,duration,volume,muted,shuffle,repeat,lik
         </div>
 
         {/* ── Center: Controls + Progress ── */}
-        <div style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:11, minWidth:0}}>
+        <div className="loqa-player-center" style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:11, minWidth:0}}>
 
           {/* Transport controls */}
           <div style={{display:'flex', alignItems:'center', gap:24}}>
@@ -576,7 +576,7 @@ export function PlayerBar({song,playing,duration,volume,muted,shuffle,repeat,lik
         </div>
 
         {/* ── Right: Secondary controls + Volume ── */}
-        <div style={{width:250, display:'flex', alignItems:'center', gap:5, justifyContent:'flex-end', flexShrink:0}}>
+        <div className="loqa-player-right" style={{width:250, display:'flex', alignItems:'center', gap:5, justifyContent:'flex-end', flexShrink:0}}>
 
           {/* Lyrics & Queue pill buttons */}
           <PillBtn label="Lyrics" icon={I.lyrics} active={showLyrics} onClick={onToggleLyrics} C={C}/>

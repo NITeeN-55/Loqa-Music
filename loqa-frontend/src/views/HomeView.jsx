@@ -99,9 +99,9 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
   const greeting = hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening';
 
   return (
-    <div>
+    <div className="home-view">
       {/* Hero */}
-      <div style={{ borderRadius: 20, background: `linear-gradient(135deg,${C.bg3},${C.bg2})`,
+      <div className="home-hero" style={{ borderRadius: 20, background: `linear-gradient(135deg,${C.bg3},${C.bg2})`,
         padding: isMobile ? '24px 20px' : '36px 40px', marginBottom: 32,
         position: 'relative', overflow: 'hidden' }}>
         <div aria-hidden="true" style={{ position: 'absolute', top: -60, right: -60, width: 300, height: 300,
@@ -112,7 +112,7 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
         <p style={{ color: C.text2, fontSize: 14, margin: '0 0 20px' }}>
           Your personal music stream, powered by YouTube
         </p>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="home-hero-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button onClick={() => go('search')}
             style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px',
               background: gradStr(0), border: 'none', borderRadius: 12,
@@ -131,7 +131,7 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
       {/* ── Continue Listening (recently played) ─────────────── */}
       {recentSongs.length > 0 && (
         <Section title="▶ Continue Listening" C={C}>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)', gap: 8 }}>
+          <div className="home-continue-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)', gap: 8 }}>
             {recentSongs.slice(0, 6).map(s => (
               <button key={`continue-${s.id}`} onClick={() => onPlay(s, { toggle: true, list: recentSongs, source: 'recent' })}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
@@ -214,7 +214,7 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
         onAction={() => go('search', { searchQ: 'trending music' })}>
         {loading
           ? <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={32} /></div>
-          : <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 4 }}>
+          : <div className="home-trending-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 4 }}>
               {trending.slice(0, isMobile ? 6 : 10).map((s, i) => (
                 <SongRow key={s.id} song={s} idx={i} current={cur} playing={playing}
                   liked={liked.includes(s.id)}
@@ -233,7 +233,7 @@ export function HomeView({ C, song: cur, playing, liked, onPlay, onPlayAll, onLi
 
       {/* Genre grid */}
       <Section title="Browse Genres" C={C}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
+        <div className="home-genre-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
           {GENRES.map((g, i) => (
             <button key={g} onClick={() => go('genre', { genre: g })}
               style={{ padding: '16px 14px', borderRadius: 12, background: gradStr(i),

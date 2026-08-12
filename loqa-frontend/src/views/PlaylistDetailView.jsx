@@ -90,7 +90,7 @@ export function PlaylistDetailView({ C, playlist, song: cur, playing, liked, onP
   const useVirtual = sorted.length > VIRTUAL_THRESHOLD;
 
   return (
-    <div>
+    <div className="playlist-view">
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
         <button onClick={onBack} aria-label="Back"

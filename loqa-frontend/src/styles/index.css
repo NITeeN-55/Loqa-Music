@@ -45,3 +45,122 @@ input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;bac
 @keyframes eq3{0%,100%{height:80%}50%{height:40%}}
 .fade-up{animation:fadeUp .3s ease forwards}
 .spin{animation:spin 1s linear infinite}
+
+/* =========================================================
+   LOQA RESPONSIVE LAYOUT SYSTEM
+   Keeps the existing visual design, but makes the app adapt
+   cleanly from small phones to wide desktop screens.
+   ========================================================= */
+html,body,#root{width:100%;min-width:0;min-height:100%;overflow:hidden}
+body{overflow:hidden}
+button,input,textarea,select{max-width:100%}
+.loqa-app-shell{width:100%;min-width:0;overflow:hidden;overscroll-behavior:none}
+.loqa-main-column{width:100%;min-width:0}
+.loqa-main{min-width:0;scrollbar-gutter:stable}
+.loqa-main > *{min-width:0;max-width:100%}
+.loqa-sidebar{width:240px;max-width:82vw}
+.loqa-header{min-width:0;position:relative;z-index:20}
+.loqa-player-mobile,.loqa-player-desktop{min-width:0;max-width:100%}
+.loqa-player-left,.loqa-player-center,.loqa-player-right{min-width:0}
+.loqa-hscroll{max-width:100%;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.loqa-section{min-width:0}
+.loqa-section h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-view,.library-view,.search-view,.genre-view,.playlist-view{width:100%;max-width:1440px;margin-inline:auto;min-width:0}
+.home-hero{width:100%;min-width:0}
+.home-continue-grid,.home-trending-grid,.home-genre-grid,.library-tip-grid{min-width:0}
+.home-continue-grid > *, .home-trending-grid > *, .home-genre-grid > *, .library-tip-grid > *{min-width:0}
+.home-continue-grid button{min-width:0;max-width:100%}
+.home-hero-actions button{min-width:0}
+.loqa-mobile-nav{padding-bottom:env(safe-area-inset-bottom);height:auto!important;min-height:56px}
+
+/* Wide desktop: give very large screens controlled content width. */
+@media (min-width:1441px){
+  .loqa-main{padding-left:clamp(28px,3vw,56px)!important;padding-right:clamp(28px,3vw,56px)!important}
+  .loqa-player-desktop-row{padding-left:36px!important;padding-right:36px!important}
+}
+
+/* Laptop / small desktop */
+@media (max-width:1180px){
+  .loqa-sidebar{width:220px!important}
+  .loqa-main{padding-left:20px!important;padding-right:20px!important}
+  .loqa-player-desktop-row{padding-left:18px!important;padding-right:18px!important;gap:12px!important}
+  .loqa-player-left{width:225px!important;gap:10px!important}
+  .loqa-player-right{width:200px!important;gap:3px!important}
+  .loqa-player-center{min-width:180px!important}
+}
+
+/* Tablet: compact the player and navigation without requiring horizontal scrolling. */
+@media (max-width:1024px){
+  .loqa-sidebar{width:210px!important}
+  .loqa-main{padding-left:16px!important;padding-right:16px!important}
+  .loqa-player-left{width:200px!important}
+  .loqa-player-right{width:150px!important}
+  .loqa-player-right .loqa-vol{display:none}
+  .loqa-player-desktop-row{height:82px!important}
+  .home-hero{padding:28px 28px!important}
+}
+
+/* Phones / small tablets */
+@media (max-width:900px){
+  .loqa-app-shell{height:100dvh!important}
+  .loqa-main{padding:12px 12px 0!important}
+  .loqa-sidebar{max-width:88vw!important;width:min(300px,88vw)!important}
+  .loqa-header{padding-left:10px!important;padding-right:10px!important}
+  .loqa-header h1{max-width:48vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .loqa-mobile-nav{left:0!important;right:0!important}
+  .loqa-player-mobile{position:relative;z-index:55}
+  .home-hero{padding:22px 18px!important;border-radius:16px!important;margin-bottom:24px!important}
+  .home-hero-actions{display:grid!important;grid-template-columns:1fr 1fr;gap:8px!important}
+  .home-hero-actions button{width:100%!important;justify-content:center!important;padding:10px 10px!important}
+  .home-continue-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  .home-trending-grid{grid-template-columns:1fr!important}
+  .home-genre-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .library-header{gap:10px;flex-wrap:wrap}
+  .library-header button{white-space:nowrap}
+  .library-tip-grid{grid-template-columns:1fr 1fr!important}
+  .loqa-hscroll{grid-auto-columns:minmax(145px,42vw)!important;gap:10px!important}
+  .loqa-now-playing{padding-left:0!important;padding-right:0!important}
+}
+
+/* Small phones */
+@media (max-width:560px){
+  .loqa-main{padding-left:10px!important;padding-right:10px!important}
+  .loqa-header{padding:8px 8px!important}
+  .home-hero{padding:18px 14px!important}
+  .home-hero h1{font-size:21px!important}
+  .home-hero p{font-size:12px!important}
+  .home-hero-actions{grid-template-columns:1fr!important}
+  .home-continue-grid{grid-template-columns:1fr!important}
+  .home-continue-grid button{padding:9px 10px!important}
+  .home-genre-grid{grid-template-columns:1fr 1fr!important;gap:8px!important}
+  .home-genre-grid button{padding:13px 11px!important;font-size:12px!important}
+  .loqa-hscroll{grid-auto-columns:minmax(132px,44vw)!important}
+  .library-tip-grid{grid-template-columns:1fr!important}
+  .library-header{align-items:stretch!important}
+  .library-header h2{font-size:20px!important}
+  .library-header button{width:100%!important;justify-content:center!important}
+}
+
+/* Very small phones: preserve touch targets and remove cramped horizontal rows. */
+@media (max-width:380px){
+  .loqa-main{padding-left:8px!important;padding-right:8px!important}
+  .loqa-mobile-nav button{min-width:0!important}
+  .loqa-mobile-nav span{font-size:9px!important}
+  .home-genre-grid{grid-template-columns:1fr!important}
+}
+
+/* Respect devices with a notch / home indicator. */
+@supports (padding: max(0px)){
+  .loqa-main{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+  .loqa-player-mobile{padding-bottom:env(safe-area-inset-bottom)}
+  .loqa-mobile-nav{padding-bottom:max(6px,env(safe-area-inset-bottom))}
+}
+
+/* Prevent accidental page-width expansion caused by long song/artist strings. */
+.loqa-main img,.loqa-main svg,.loqa-main video{max-width:100%}
+.loqa-main [style*="whiteSpace"]{min-width:0}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}

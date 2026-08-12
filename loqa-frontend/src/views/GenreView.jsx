@@ -11,7 +11,7 @@ export function GenreView({ C, genre, song: cur, playing, liked, onPlay, onLike,
   const [loading, setLoading] = useState(true);
   useEffect(() => { setLoading(true); getGenre(genre).then(t => { t.forEach(cacheSong); setSongs(t); setLoading(false); }); }, [genre]);
   return (
-    <div>
+    <div className="genre-view">
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
         <button onClick={onBack} aria-label="Back"
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.text2, padding: 4 }}>

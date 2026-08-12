@@ -28,7 +28,7 @@ import { useMediaQuery, useKeyboardShortcuts, useMediaSession, useNetworkStatus 
 const PORTAL_ROOT = document.getElementById('loqa-portals') || document.body;
 
 export default function App() {
-  const mob = useMediaQuery('(max-width:768px)');
+  const mob = useMediaQuery('(max-width:900px)');
 
   /* ── Auth ──────────────────────── */
   const authed  = useAuthStore(s => s.authed);
@@ -322,8 +322,8 @@ export default function App() {
 
   /* ─────────────────────────────── */
   return (
-    <div
-      style={{ display:'flex', height:'100vh', background:C.bg, color:C.text,
+    <div className="loqa-app-shell"
+      style={{ display:'flex', height:'100dvh', minHeight:'100vh', background:C.bg, color:C.text,
                fontFamily:"'Inter',-apple-system,sans-serif", overflow:'hidden' }}
       onClick={() => ctxMenu && setCtxMenu(null)}
     >
@@ -341,7 +341,7 @@ export default function App() {
 
       {/* ── Sidebar ─────────────────────────────────────── */}
       {sidebarOpen && (
-        <aside
+        <aside className="loqa-sidebar"
           role={mob ? 'dialog' : 'navigation'}
           aria-modal={mob || undefined}
           aria-label="Main navigation"
@@ -485,10 +485,10 @@ export default function App() {
       )}
 
       {/* ── Main column ─────────────────────────────────── */}
-      <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
+      <div className="loqa-main-column" style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
 
         {/* Header */}
-        <header style={{
+        <header className="loqa-header" style={{
           background:C.glass, backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)',
           borderBottom:`1px solid ${C.border}`,
           padding: mob ? '10px 14px' : '12px 22px',
@@ -564,7 +564,7 @@ export default function App() {
         )}
 
         {/* ── Main content ── */}
-        <main id="main" ref={mainRef} tabIndex={-1} aria-label="Main content"
+        <main className="loqa-main" id="main" ref={mainRef} tabIndex={-1} aria-label="Main content"
           style={{ flex:1, overflowY:'auto', padding: mob ? '14px 12px 0' : '24px 28px 0' }}>
 
           {/* Suspense wrapper for all code-split lazy views */}
@@ -643,7 +643,7 @@ export default function App() {
 
       {/* Mobile bottom nav */}
       {mob && (
-        <nav aria-label="Mobile navigation"
+        <nav className="loqa-mobile-nav" aria-label="Mobile navigation"
           style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:50,
                    background:C.player, borderTop:`1px solid ${C.border}`,
                    display:'flex', justifyContent:'space-around', alignItems:'center', height:56 }}>
