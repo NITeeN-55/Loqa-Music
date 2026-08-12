@@ -86,7 +86,7 @@ export const SongCard = React.memo(function SongCard({song,current,playing,liked
           <Thumb song={song} size="100%" radius={0} playing={active&&playing}/>
         </div>
         {(hov||active)&&<div style={{position:'absolute',inset:0,background:'rgba(0,0,0,.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <button onClick={e=>{e.stopPropagation();onPlay(song);}}
+          <button className="loqa-song-card-play" onClick={e=>{e.stopPropagation();onPlay(song);}}
             style={{width:44,height:44,borderRadius:'50%',background:'rgba(255,255,255,.95)',border:'none',
               cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
               boxShadow:'0 4px 16px rgba(0,0,0,.3)'}}>
@@ -225,6 +225,7 @@ function injectPlayerStyles() {
     .loqa-vol::-webkit-slider-thumb { -webkit-appearance:none; width:11px; height:11px; border-radius:50%; background:#fff; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.5); }
     .loqa-vol::-moz-range-thumb { width:11px; height:11px; border:none; border-radius:50%; background:#fff; cursor:pointer; }
     .loqa-vol { -webkit-appearance:none; appearance:none; height:3px; border-radius:6px; outline:none; cursor:pointer; }
+    @media (max-width:560px){ .loqa-song-card-play{width:40px!important;height:40px!important}.loqa-song-card{min-width:0!important}.loqa-song-card > div:last-child{padding:8px 10px 10px!important}.loqa-song-card > div:last-child > div:first-child{font-size:12px!important}.loqa-song-card > div:last-child > div:last-child{font-size:10px!important} }
   `;
   document.head.appendChild(s);
 }

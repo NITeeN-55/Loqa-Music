@@ -617,7 +617,7 @@ export default function App() {
           )}
           </React.Suspense>
 
-          <div style={{ height: mob ? 110 : 24 }} aria-hidden="true" />
+          <div style={{ height: mob ? 76 : 24 }} aria-hidden="true" />
         </main>
 
         {/* Player bar */}
