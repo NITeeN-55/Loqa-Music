@@ -128,7 +128,7 @@ export function SearchView({ C, song: cur, playing, liked, onPlay, onLike, onCtx
         {showSug && (suggestions.length > 0 || (!q && searchHistory.length > 0)) && (
           <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: C.surface,
             border: `1px solid ${C.border}`, borderRadius: 12, marginTop: 4, zIndex: 100,
-            boxShadow: '0 8px 32px rgba(0,0,0,.2)', overflow: 'hidden' }}>
+            boxShadow: '0 8px 32px rgba(0,0,0,.2)', overflow: 'auto', maxHeight: 'min(420px, 60vh)', overscrollBehavior: 'contain' }}>
             {/* Autocomplete suggestions */}
             {suggestions.map((s, i) => (
               <button key={`sug-${i}`} onClick={() => { setQ(s); doSearch(s); }}

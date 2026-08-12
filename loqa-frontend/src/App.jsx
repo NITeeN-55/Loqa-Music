@@ -336,7 +336,7 @@ export default function App() {
       {/* Mobile backdrop */}
       {mob && sidebarOpen && (
         <div aria-hidden="true" onClick={() => setSidebar(false)}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:49 }} />
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:4998 }} />
       )}
 
       {/* ── Sidebar ─────────────────────────────────────── */}
@@ -348,8 +348,8 @@ export default function App() {
           style={{
             width:240, flexShrink:0, background:C.surface,
             borderRight:`1px solid ${C.border}`,
-            display:'flex', flexDirection:'column', zIndex:50, overflow:'hidden',
-            ...(mob ? { position:'fixed', left:0, top:0, bottom:0, boxShadow:'8px 0 40px rgba(0,0,0,.5)' } : {}),
+            display:'flex', flexDirection:'column', zIndex:4999, overflow:'hidden',
+            ...(mob ? { position:'fixed', left:0, top:0, bottom:0, boxShadow:'8px 0 40px rgba(0,0,0,.5)', zIndex:4999, width:'100vw', maxWidth:'100vw' } : {}),
           }}
         >
           {/* Logo */}

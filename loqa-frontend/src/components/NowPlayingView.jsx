@@ -9,12 +9,9 @@
  *  - Queue preview panel
  */
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { gradStr, fmtTime } from '../utils/constants.js';
 import { Svg, I, EqBars } from './Icons.jsx';
 import usePlayerStore from '../stores/playerStore.js';
-
-const PORTAL_ROOT = document.getElementById('loqa-portals') || document.body;
 
 /* ── Colour extraction from thumbnail ───────────────────── */
 function extractColor(imgUrl, callback) {
@@ -455,5 +452,5 @@ export default function NowPlayingView({
     </div>
   );
 
-  return createPortal(modal, PORTAL_ROOT);
+  return modal;
 }
